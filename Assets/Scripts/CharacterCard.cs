@@ -11,12 +11,15 @@ public class CharacterCard : MonoBehaviour
     public Image characterImage;
     public Button cardButton;
 
+    private CardAnimation cardAnimation;
+
     private void Awake()
     {
         if (cardButton == null) cardButton = GetComponent<Button>();
         if (characterImage == null) characterImage = GetComponent<Image>();
         
         cardButton.onClick.AddListener(OnCardClicked);
+        cardAnimation = GetComponent<CardAnimation>();
     }
 
     public void Initialize(string name, Sprite sprite)
@@ -32,13 +35,13 @@ public class CharacterCard : MonoBehaviour
 
         if (GameManager.Instance.wantedCharacter == this)
         {
+            cardAnimation.PlayCorrectAnimation();
             GameManager.Instance.AddScore();
-            // Déclencher l'animation de succès ici
         }
         else
         {
+            cardAnimation.PlayWrongAnimation();
             GameManager.Instance.GameOver();
-            // Déclencher l'animation d'échec ici
         }
     }
 } 

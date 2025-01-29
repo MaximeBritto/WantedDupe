@@ -81,6 +81,7 @@ public class GameManager : MonoBehaviour
     public void AddScore()
     {
         currentScore += scorePerCorrectClick;
+        StartNewRound();
     }
 
     public Sprite GetRandomSprite()
@@ -88,5 +89,17 @@ public class GameManager : MonoBehaviour
         int colorIndex = random.Next(allCharacterSprites.Length);
         int expressionIndex = random.Next(allCharacterSprites[colorIndex].expressions.Length);
         return allCharacterSprites[colorIndex].expressions[expressionIndex];
+    }
+
+    public void StartNewRound()
+    {
+        if (currentScore > 500)
+        {
+            roundDuration = Mathf.Max(10f, roundDuration - 2f);
+        }
+        
+        timeRemaining = roundDuration;
+        
+        onGameStart.Invoke();
     }
 } 
