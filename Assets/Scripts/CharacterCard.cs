@@ -39,6 +39,16 @@ public class CharacterCard : MonoBehaviour
         cardButton.onClick.AddListener(OnCardClicked);
         
         cardAnimation = GetComponent<CardAnimation>();
+        
+        // Ajuster la taille du collider pour mobile
+        if (Application.isMobilePlatform)
+        {
+            if (characterImage != null)
+            {
+                // Agrandir légèrement la zone de touch
+                characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
+            }
+        }
     }
 
     public void Initialize(string name, Sprite sprite)

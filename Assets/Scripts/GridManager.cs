@@ -21,6 +21,15 @@ public class GridManager : MonoBehaviour
     public float highlightDelay = 0.1f;    // Délai entre chaque highlight
     public float delayAfterSuccess = 1f;   // Délai après avoir trouvé le bon wanted
 
+    [Header("Mobile Settings")]
+    public float cardSizeMobile = 100f;  // Taille des cartes sur mobile
+    public float minSpacingMobile = 10f; // Espacement minimum entre les cartes
+
+    [Header("Card Settings")]
+    public int minCards = 16;
+    public int maxCards = 24;
+    public float minCardDistance = 100f;  // Distance minimale entre les cartes
+
     public List<CharacterCard> cards = new List<CharacterCard>();
     private CharacterCard wantedCard;
 
@@ -41,8 +50,63 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    private void AdjustForMobileIfNeeded()
+    {
+        if (Application.isMobilePlatform)
+        {
+            // Ajuster le nombre de cartes selon la taille de l'écran
+            float screenRatio = (float)Screen.width / Screen.height;
+            if (screenRatio < 0.7f)  // Format portrait
+            {
+                numberOfCards = 16;  // Moins de cartes sur mobile en portrait
+            }
+            
+            // Ajuster la zone de jeu
+            playAreaWidth = Screen.width * 0.9f;
+            playAreaHeight = Screen.height * 0.6f;
+        }
+    }
+
+    private Vector2 GetValidCardPosition()
+    {
+        int maxAttempts = 50;
+        int attempts = 0;
+        
+        while (attempts < maxAttempts)
+        {
+            Vector2 position = new Vector2(
+                Random.Range(-playAreaWidth/2, playAreaWidth/2),
+                Random.Range(-playAreaHeight/2, playAreaHeight/2)
+            );
+
+            // Vérifier la distance avec toutes les cartes existantes
+            bool isValidPosition = true;
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                
+                RectTransform rectTransform = card.GetComponent<RectTransform>();
+                float distance = Vector2.Distance(position, rectTransform.anchoredPosition);
+                if (distance < minCardDistance)
+                {
+                    isValidPosition = false;
+                    break;
+                }
+            }
+
+            if (isValidPosition)
+                return position;
+
+            attempts++;
+        }
+
+        // Si on ne trouve pas de position valide, retourner une position par défaut
+        return Vector2.zero;
+    }
+
     public void InitializeGrid()
     {
+        AdjustForMobileIfNeeded();
         Debug.Log("Début InitializeGrid");
         
         // Nettoyer la grille existante
@@ -58,19 +122,21 @@ public class GridManager : MonoBehaviour
         List<Sprite> usedSprites = new List<Sprite>();
         usedSprites.Add(wantedSprite);
 
+        // Nombre aléatoire de cartes
+        numberOfCards = Random.Range(minCards, maxCards + 1);
+
         // Créer toutes les cartes avec des positions aléatoires
         for (int i = 0; i < numberOfCards; i++)
         {
             GameObject cardObj = Instantiate(characterCardPrefab, gridContainer);
             CharacterCard card = cardObj.GetComponent<CharacterCard>();
             
-            // Position aléatoire dans la zone de jeu
+            // Utiliser GetValidCardPosition pour éviter les superpositions
+            Vector2 position = GetValidCardPosition();
             RectTransform rectTransform = cardObj.GetComponent<RectTransform>();
-            float xPos = Random.Range(-playAreaWidth/2, playAreaWidth/2);
-            float yPos = Random.Range(-playAreaHeight/2, playAreaHeight/2);
-            rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+            rectTransform.anchoredPosition = position;
             
-            Debug.Log($"Carte {i} créée à la position : {xPos}, {yPos}");
+            Debug.Log($"Carte {i} créée à la position : {position}");
 
             Sprite cardSprite;
             if (i == 0)
@@ -160,6 +226,34 @@ public class GridManager : MonoBehaviour
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
     }
 
+    private void StartContinuousCardMovement(CharacterCard card)
+    {
+        RectTransform rectTransform = card.GetComponent<RectTransform>();
+        
+        // Créer une séquence d'animation infinie
+        Sequence sequence = DOTween.Sequence();
+        
+        // Fonction pour obtenir une nouvelle position aléatoire
+        Vector2 GetRandomPosition()
+        {
+            return new Vector2(
+                Random.Range(-playAreaWidth/2, playAreaWidth/2),
+                Random.Range(-playAreaHeight/2, playAreaHeight/2)
+            );
+        }
+
+        // Configurer l'animation continue
+        sequence
+            .Append(rectTransform.DOAnchorPos(GetRandomPosition(), Random.Range(2f, 4f))
+                .SetEase(Ease.InOutQuad))
+            .AppendCallback(() => {
+                // Chaque fois qu'une animation se termine, en démarrer une nouvelle
+                rectTransform.DOAnchorPos(GetRandomPosition(), Random.Range(2f, 4f))
+                    .SetEase(Ease.InOutQuad)
+                    .OnComplete(() => StartContinuousCardMovement(card));
+            });
+    }
+
     public void AnimateCardsEntry()
     {
         Debug.Log($"Début AnimateCardsEntry avec {cards.Count} cartes");
@@ -176,42 +270,10 @@ public class GridManager : MonoBehaviour
             card.gameObject.SetActive(true);
             card.transform.localScale = Vector3.zero;
             
-            // Assigner une nouvelle position aléatoire
-            RectTransform rectTransform = card.GetComponent<RectTransform>();
-            Vector2 randomPos = new Vector2(
-                Random.Range(-playAreaWidth/2, playAreaWidth/2),
-                Random.Range(-playAreaHeight/2, playAreaHeight/2)
-            );
-            rectTransform.anchoredPosition = randomPos;
-            
-            Debug.Log($"Position de la carte {card.characterName}: {rectTransform.anchoredPosition}");
-        }
-        
-        StartCoroutine(AnimateCardsEntryCoroutine());
-    }
-
-    private IEnumerator AnimateCardsEntryCoroutine()
-    {
-        float delayBetweenCards = 0.1f;
-        
-        foreach (var card in cards)
-        {
-            // Animer l'apparition avec un effet de rebond
+            // Animation d'apparition
             card.transform.DOScale(Vector3.one, 0.3f)
-                .SetEase(Ease.OutBack);
-            
-            // Animer la position avec un effet de rebond
-            RectTransform rectTransform = card.GetComponent<RectTransform>();
-            Vector2 currentPos = rectTransform.anchoredPosition;
-            Vector2 targetPos = new Vector2(
-                Random.Range(-playAreaWidth/2, playAreaWidth/2),
-                Random.Range(-playAreaHeight/2, playAreaHeight/2)
-            );
-            
-            rectTransform.DOAnchorPos(targetPos, 0.3f)
-                .SetEase(Ease.OutBack);
-            
-            yield return new WaitForSeconds(delayBetweenCards);
+                .SetEase(Ease.OutBack)
+                .OnComplete(() => StartContinuousCardMovement(card));
         }
     }
 } 

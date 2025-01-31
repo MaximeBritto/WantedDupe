@@ -43,6 +43,15 @@ public class UIManager : MonoBehaviour
     public RectTransform gameBoard;
     public Image gameBoardImage;
 
+    [Header("Mobile Settings")]
+    public bool isMobileDevice;
+    public float mobileScaleFactor = 0.7f;  // Facteur d'échelle pour mobile
+    public Vector2 portraitWantedPosition = new Vector2(0, 800f);  // Plus haut en mode portrait
+    public Vector2 portraitWantedSize = new Vector2(300, 450f);    // Taille adaptée au portrait
+
+    [Header("Safe Area")]
+    public RectTransform safeAreaRect;
+
     private void Awake()
     {
         if (Instance == null)
@@ -82,6 +91,64 @@ public class UIManager : MonoBehaviour
         {
             gameBoardImage.color = new Color(0, 0, 0, 0.2f);  // Fond semi-transparent
         }
+
+        // Détecter si on est sur mobile
+        isMobileDevice = Application.isMobilePlatform;
+        
+        // Ajuster les tailles pour mobile
+        if (isMobileDevice)
+        {
+            // Vérifier si on est en mode portrait
+            bool isPortrait = Screen.height > Screen.width;
+            if (isPortrait)
+            {
+                finalWantedSize = portraitWantedSize;
+                finalWantedPosition = portraitWantedPosition;
+                
+                // Ajuster la zone de jeu pour le mode portrait
+                var gridManager = FindObjectOfType<GridManager>();
+                if (gridManager != null)
+                {
+                    gridManager.playAreaWidth = Screen.width * 0.9f;
+                    gridManager.playAreaHeight = Screen.height * 0.5f;  // Moins haut pour laisser de la place au wanted
+                }
+            }
+            else
+            {
+                // Ajuster la taille du wanted
+                finalWantedSize = new Vector2(150, 225);  // Plus petit sur mobile
+                finalWantedPosition = new Vector2(0, Screen.height * 0.4f);  // Position adaptée
+                
+                // Ajuster la taille des cartes
+                var cardScale = Vector3.one * mobileScaleFactor;
+                foreach (var card in FindObjectsOfType<CharacterCard>())
+                {
+                    card.transform.localScale = cardScale;
+                }
+                
+                // Ajuster la zone de jeu
+                var gridManager = FindObjectOfType<GridManager>();
+                if (gridManager != null)
+                {
+                    gridManager.playAreaWidth = Screen.width * 0.9f;
+                    gridManager.playAreaHeight = Screen.height * 0.7f;
+                }
+
+                // Appliquer la safe area
+                Rect safeArea = Screen.safeArea;
+                Vector2 anchorMin = safeArea.position;
+                Vector2 anchorMax = anchorMin + safeArea.size;
+                
+                anchorMin.x /= Screen.width;
+                anchorMin.y /= Screen.height;
+                anchorMax.x /= Screen.width;
+                anchorMax.y /= Screen.height;
+                
+                safeAreaRect.anchorMin = anchorMin;
+                safeAreaRect.anchorMax = anchorMax;
+                safeAreaRect.sizeDelta = Vector2.zero;
+            }
+        }
     }
 
     private void DisableRaycastOnPanel(RectTransform panel)
@@ -120,10 +187,12 @@ public class UIManager : MonoBehaviour
     {
         isRouletteRunning = true;
 
-        // Cacher tous les éléments sauf le wanted
+        // Cacher uniquement la grille, garder le score/timer visible
         gridCanvas.gameObject.SetActive(false);
-        gameInfoPanel.gameObject.SetActive(false);  // Cacher le score/timer
         
+        // Mettre le jeu en pause
+        GameManager.Instance.PauseGame();
+
         // Attendre que les cartes finissent leur animation actuelle
         yield return new WaitForSeconds(1f);
 
@@ -186,6 +255,8 @@ public class UIManager : MonoBehaviour
             gridManager.AnimateCardsEntry();
         }
 
+        // À la fin, réactiver le jeu
+        GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
     }
 

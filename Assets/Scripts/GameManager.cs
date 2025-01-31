@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using DG.Tweening;
 
 public class GameManager : MonoBehaviour
 {
@@ -32,6 +34,7 @@ public class GameManager : MonoBehaviour
     public UnityEvent<CharacterCard> onNewWantedCharacter = new UnityEvent<CharacterCard>();
 
     private System.Random random;
+    private bool isPaused = false;
 
     private void Awake()
     {
@@ -58,18 +61,66 @@ public class GameManager : MonoBehaviour
     private IEnumerator GameTimer()
     {
         Debug.Log("Timer démarré");
-        while (timeRemaining > 0 && isGameActive)
+        while (isGameActive)
         {
-            timeRemaining -= Time.deltaTime;
-            yield return null;
+            yield return new WaitForSeconds(0.1f);
+            if (!isPaused)  // Ne décrémenter que si le jeu n'est pas en pause
+            {
+                timeRemaining -= 0.1f;
+                if (timeRemaining <= 0)
+                {
+                    GameOver();
+                    break;
+                }
+            }
         }
-        
-        GameOver();
     }
 
     public void GameOver()
     {
         isGameActive = false;
+
+        // Révéler la position du wanted en faisant disparaître les autres cartes
+        StartCoroutine(RevealWantedPosition());
+    }
+
+    private IEnumerator RevealWantedPosition()
+    {
+        // Faire disparaître toutes les cartes sauf le wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            foreach (var card in gridManager.cards)
+            {
+                if (card != wantedCharacter)
+                {
+                    // Animation de disparition
+                    card.transform.DOScale(0f, 0.3f)
+                        .SetEase(Ease.InBack);
+                }
+                else
+                {
+                    // Mettre en évidence le wanted
+                    card.transform.DOScale(1.2f, 0.5f)
+                        .SetEase(Ease.OutElastic);
+                    
+                    // Optionnel : faire clignoter le wanted
+                    var image = card.GetComponent<Image>();
+                    if (image != null)
+                    {
+                        DOTween.Sequence()
+                            .Append(image.DOColor(Color.yellow, 0.3f))
+                            .Append(image.DOColor(Color.white, 0.3f))
+                            .SetLoops(3);
+                    }
+                }
+            }
+        }
+
+        // Attendre que les animations soient terminées
+        yield return new WaitForSeconds(2f);
+
+        // Afficher le game over
         onGameOver.Invoke();
     }
 
@@ -121,5 +172,15 @@ public class GameManager : MonoBehaviour
         timeRemaining = roundDuration;
         
         onGameStart.Invoke();
+    }
+
+    public void PauseGame()
+    {
+        isPaused = true;
+    }
+
+    public void ResumeGame()
+    {
+        isPaused = false;
     }
 } 

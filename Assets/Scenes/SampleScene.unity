@@ -2102,6 +2102,11 @@ MonoBehaviour:
   rouletteDuration: 2
   highlightDelay: 0.1
   delayAfterSuccess: 1
+  cardSizeMobile: 100
+  minSpacingMobile: 10
+  minCards: 10
+  maxCards: 15
+  minCardDistance: 100
   cards: []
 --- !u!1 &1210835075
 GameObject:
@@ -2400,9 +2405,9 @@ MonoBehaviour:
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 1920, y: 1080}
+  m_ReferenceResolution: {x: 1080, y: 1920}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -3122,6 +3127,11 @@ MonoBehaviour:
   isRouletteRunning: 0
   gameBoard: {fileID: 0}
   gameBoardImage: {fileID: 0}
+  isMobileDevice: 0
+  mobileScaleFactor: 0.7
+  portraitWantedPosition: {x: 0, y: 800}
+  portraitWantedSize: {x: 300, y: 450}
+  safeAreaRect: {fileID: 0}
 --- !u!4 &2031354612
 Transform:
   m_ObjectHideFlags: 0
