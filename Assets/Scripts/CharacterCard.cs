@@ -15,8 +15,6 @@ public class CharacterCard : MonoBehaviour
 
     private void Awake()
     {
-        Debug.Log($"Awake de la carte {gameObject.name}");
-        
         // Vérifier si nous avons un Button
         cardButton = GetComponent<Button>();
         if (cardButton == null)
@@ -38,14 +36,9 @@ public class CharacterCard : MonoBehaviour
         
         // Configurer le bouton
         cardButton.onClick.RemoveAllListeners();
-        cardButton.onClick.AddListener(() => {
-            Debug.Log("Click détecté via listener!");
-            OnCardClicked();
-        });
+        cardButton.onClick.AddListener(OnCardClicked);
         
         cardAnimation = GetComponent<CardAnimation>();
-        
-        Debug.Log($"Card setup complete - Button: {cardButton != null}, Image: {characterImage != null}");
     }
 
     public void Initialize(string name, Sprite sprite)
@@ -53,39 +46,32 @@ public class CharacterCard : MonoBehaviour
         characterName = name;
         characterSprite = sprite;
         characterImage.sprite = characterSprite;
-        Debug.Log($"Carte initialisée: {name} - Est Wanted: {name == "Wanted"}");
     }
 
     private void OnCardClicked()
     {
-        Debug.Log($"Carte cliquée: {characterName}");
-        
-        if (!GameManager.Instance.isGameActive)
+        if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning) return;
+
+        if (GameManager.Instance.wantedCharacter == this)
         {
-            Debug.Log("Jeu non actif");
-            return;
-        }
+            // Cacher toutes les cartes immédiatement
+            var gridManager = FindObjectOfType<GridManager>();
+            if (gridManager != null)
+            {
+                foreach (var card in gridManager.cards)
+                {
+                    card.gameObject.SetActive(false);
+                }
+            }
 
-        // Ajout de logs détaillés pour la comparaison
-        Debug.Log($"Cette carte: {GetInstanceID()}");
-        Debug.Log($"Wanted card: {GameManager.Instance.wantedCharacter?.GetInstanceID()}");
-        Debug.Log($"Cette carte est Wanted? {characterName == "Wanted"}");
-        Debug.Log($"Sprite actuel: {characterSprite.name}");
-        Debug.Log($"Sprite wanted: {GameManager.Instance.wantedCharacter?.characterSprite.name}");
-
-        bool isWanted = (GameManager.Instance.wantedCharacter == this);
-        Debug.Log($"Comparaison directe: {isWanted}");
-
-        if (isWanted)
-        {
-            Debug.Log("C'est la bonne carte!");
             cardAnimation.PlayCorrectAnimation();
+            AudioManager.Instance.PlayCorrect();
             GameManager.Instance.AddScore();
         }
         else
         {
-            Debug.Log("Mauvaise carte");
             cardAnimation.PlayWrongAnimation();
+            AudioManager.Instance.PlayWrong();
             GameManager.Instance.GameOver();
         }
     }

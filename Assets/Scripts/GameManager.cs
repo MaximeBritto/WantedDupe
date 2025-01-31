@@ -48,11 +48,9 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
-        Debug.Log("GameManager.StartGame appelé");
         currentScore = 0f;
         timeRemaining = roundDuration;
         isGameActive = true;
-        Debug.Log($"isGameActive mis à {isGameActive}");
         onGameStart.Invoke();
         StartCoroutine(GameTimer());
     }

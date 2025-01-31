@@ -1,9 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
+using DG.Tweening;
 
 public class UIManager : MonoBehaviour
 {
+    public static UIManager Instance { get; private set; }
+
     [Header("Canvas Orders")]
     public Canvas mainCanvas;        // Canvas principal
     public Canvas gridCanvas;        // Canvas pour la grille de cartes
@@ -27,6 +31,30 @@ public class UIManager : MonoBehaviour
     public Button startButton;
     public Button restartButton;
 
+    [Header("Roulette Effect")]
+    public float rouletteDuration = 2f;      // Durée totale de la roulette
+    public float changeImageDelay = 0.1f;    // Délai entre chaque changement d'image
+    public float fullscreenScale = 2f;       // Échelle maximale du panneau
+    public Vector2 finalWantedPosition = new Vector2(0, 400f); // Position Y en haut de l'écran
+    public Vector2 finalWantedSize = new Vector2(200, 300);    // Taille finale plus petite
+    public bool isRouletteRunning = false;
+
+    [Header("Game Board")]
+    public RectTransform gameBoard;
+    public Image gameBoardImage;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     private void Start()
     {
         // Configuration des ordres de Canvas
@@ -48,6 +76,12 @@ public class UIManager : MonoBehaviour
         
         startButton.onClick.AddListener(StartGame);
         restartButton.onClick.AddListener(StartGame);
+
+        // Configurer le plateau de jeu
+        if (gameBoardImage != null)
+        {
+            gameBoardImage.color = new Color(0, 0, 0, 0.2f);  // Fond semi-transparent
+        }
     }
 
     private void DisableRaycastOnPanel(RectTransform panel)
@@ -78,14 +112,85 @@ public class UIManager : MonoBehaviour
 
     private void UpdateWantedCharacter(CharacterCard character)
     {
-        Debug.Log($"Mise à jour du Wanted: {character.characterName}");
-        wantedCharacterImage.sprite = character.characterSprite;
+        if (isRouletteRunning) return;
+        StartCoroutine(WantedRouletteEffect(character));
+    }
+
+    private IEnumerator WantedRouletteEffect(CharacterCard finalCharacter)
+    {
+        isRouletteRunning = true;
+
+        // Cacher tous les éléments sauf le wanted
+        gridCanvas.gameObject.SetActive(false);
+        gameInfoPanel.gameObject.SetActive(false);  // Cacher le score/timer
+        
+        // Attendre que les cartes finissent leur animation actuelle
+        yield return new WaitForSeconds(1f);
+
+        // Cacher le panneau wanted
+        wantedPanel.gameObject.SetActive(false);
+        
+        // Attendre un court instant
+        yield return new WaitForSeconds(0.5f);
+
+        // Activer et animer le panneau wanted en plein écran
+        wantedPanel.gameObject.SetActive(true);
+        wantedPanel.transform.DOScale(fullscreenScale, 0.5f);
+        wantedPanel.DOAnchorPos(Vector2.zero, 0.5f);
+
+        // Effet de roulette
+        float elapsedTime = 0;
+        while (elapsedTime < rouletteDuration)
+        {
+            // Choisir un sprite aléatoire
+            Sprite randomSprite = GameManager.Instance.GetRandomSprite();
+            wantedCharacterImage.sprite = randomSprite;
+
+            yield return new WaitForSeconds(changeImageDelay);
+            elapsedTime += changeImageDelay;
+        }
+
+        // Ralentir à la fin avec des délais plus longs
+        float[] finalDelays = { 0.2f, 0.3f, 0.4f, 0.5f };
+        foreach (float delay in finalDelays)
+        {
+            Sprite randomSprite = GameManager.Instance.GetRandomSprite();
+            wantedCharacterImage.sprite = randomSprite;
+            yield return new WaitForSeconds(delay);
+        }
+
+        // Afficher le sprite final
+        wantedCharacterImage.sprite = finalCharacter.characterSprite;
         wantedText.text = "WANTED!";
+        AudioManager.Instance.PlayCorrect();  // Son final
+
+        yield return new WaitForSeconds(0.5f);
+
+        // Animation de transition vers la position finale en haut
+        Sequence sequence = DOTween.Sequence();
+        sequence.Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
+               .Join(wantedPanel.DOAnchorPos(finalWantedPosition, 0.5f))
+               .Join(wantedPanel.transform.DOScale(1f, 0.5f));
+
+        yield return sequence.WaitForCompletion();
+
+        // Réactiver les éléments de jeu dans l'ordre
+        gameInfoPanel.gameObject.SetActive(true);  // Réafficher le score/timer
+        yield return new WaitForSeconds(0.3f);     // Petit délai
+
+        // Animer l'apparition des cartes
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            gridCanvas.gameObject.SetActive(true);
+            gridManager.AnimateCardsEntry();
+        }
+
+        isRouletteRunning = false;
     }
 
     private void OnGameStart()
     {
-        Debug.Log("OnGameStart appelé");
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
     }
@@ -99,8 +204,6 @@ public class UIManager : MonoBehaviour
 
     private void StartGame()
     {
-        Debug.Log("Démarrage du jeu");
         GameManager.Instance.StartGame();
-        Debug.Log($"Jeu actif: {GameManager.Instance.isGameActive}");
     }
 } 

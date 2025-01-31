@@ -38,30 +38,40 @@ public class CardAnimation : MonoBehaviour
 
     public void PlayCorrectAnimation()
     {
-        // Annuler les animations en cours
-        DOTween.Kill(transform);
-        
-        // Animation de pulsation pour la bonne réponse
-        transform.DOScale(originalScale * 1.2f, correctAnimationDuration / 2)
-            .SetEase(Ease.OutQuad)
+        // Animation quand on trouve le bon Wanted
+        transform.DOScale(Vector3.one * 1.2f, correctAnimationDuration)
+            .SetEase(Ease.OutBack)
             .OnComplete(() => {
-                transform.DOScale(originalScale, correctAnimationDuration / 2)
-                    .SetEase(Ease.InQuad);
-            })
-            .SetUpdate(true);
+                transform.DOScale(Vector3.one, correctAnimationDuration);
+            });
     }
 
     public void PlayWrongAnimation()
     {
-        // Annuler les animations en cours
-        DOTween.Kill(transform);
+        // Animation quand on se trompe
+        transform.DOShakePosition(0.5f, 10, 20, 90, false, true);
+    }
+
+    public void PlayShuffleAnimation(Vector2 targetPosition)
+    {
+        // Animation de mélange des cartes
+        rectTransform.DOAnchorPos(targetPosition, wrongAnimationDuration)
+            .SetEase(Ease.OutBack);
         
-        // Animation de secousse pour la mauvaise réponse
-        rectTransform.DOShakePosition(wrongAnimationDuration, 10f, 10, 90f)
-            .SetUpdate(true)
+        transform.DORotate(new Vector3(0, 0, Random.Range(-360, 360)), wrongAnimationDuration)
+            .SetEase(Ease.OutQuad)
             .OnComplete(() => {
-                // Remettre à la position d'origine
-                rectTransform.anchoredPosition = originalPosition;
+                transform.DORotate(Vector3.zero, 0.2f);
+            });
+    }
+
+    public void PlayHighlightAnimation()
+    {
+        // Animation de highlight rapide
+        transform.DOScale(Vector3.one * 1.2f, 0.1f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() => {
+                transform.DOScale(Vector3.one, 0.1f);
             });
     }
 
