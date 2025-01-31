@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      mignon_vert_0: 5701869353282204385
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

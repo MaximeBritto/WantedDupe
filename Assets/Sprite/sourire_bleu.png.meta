@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      sourire_bleu_0: 6648434867879589922
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

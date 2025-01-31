@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      sourire_rose_0: -5264198331102626987
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

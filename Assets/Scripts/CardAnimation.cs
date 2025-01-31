@@ -1,31 +1,77 @@
 using UnityEngine;
-using DG.Tween; // Nous utiliserons DOTween pour les animations
+using DG.Tweening;
 
 public class CardAnimation : MonoBehaviour
 {
+    [Header("Animation Settings")]
+    [SerializeField] private float spawnDuration = 0.3f;
+    [SerializeField] private float correctAnimationDuration = 0.3f;
+    [SerializeField] private float wrongAnimationDuration = 0.3f;
+    
     private RectTransform rectTransform;
+    private Vector3 originalScale;
+    private Vector3 originalPosition;
     
     private void Awake()
     {
         rectTransform = GetComponent<RectTransform>();
+        originalScale = transform.localScale;
+        originalPosition = rectTransform.anchoredPosition;
+    }
+
+    private void OnEnable()
+    {
+        PlaySpawnAnimation();
     }
 
     public void PlaySpawnAnimation()
     {
-        // Animation d'apparition
+        // Réinitialiser la position et l'échelle
         transform.localScale = Vector3.zero;
-        transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack);
+        rectTransform.anchoredPosition = originalPosition;
+
+        // Animation d'apparition avec rebond
+        transform.DOScale(originalScale, spawnDuration)
+            .SetEase(Ease.OutBack)
+            .SetUpdate(true);
     }
 
     public void PlayCorrectAnimation()
     {
-        // Animation de bonne réponse
-        transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 1, 0.5f);
+        // Annuler les animations en cours
+        DOTween.Kill(transform);
+        
+        // Animation de pulsation pour la bonne réponse
+        transform.DOScale(originalScale * 1.2f, correctAnimationDuration / 2)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() => {
+                transform.DOScale(originalScale, correctAnimationDuration / 2)
+                    .SetEase(Ease.InQuad);
+            })
+            .SetUpdate(true);
     }
 
     public void PlayWrongAnimation()
     {
-        // Animation de mauvaise réponse
-        transform.DOShakePosition(0.3f, 10f, 10, 90f);
+        // Annuler les animations en cours
+        DOTween.Kill(transform);
+        
+        // Animation de secousse pour la mauvaise réponse
+        rectTransform.DOShakePosition(wrongAnimationDuration, 10f, 10, 90f)
+            .SetUpdate(true)
+            .OnComplete(() => {
+                // Remettre à la position d'origine
+                rectTransform.anchoredPosition = originalPosition;
+            });
+    }
+
+    private void OnDisable()
+    {
+        // Nettoyer les animations en cours
+        DOTween.Kill(transform);
+        
+        // Réinitialiser la position et l'échelle
+        transform.localScale = originalScale;
+        rectTransform.anchoredPosition = originalPosition;
     }
 } 

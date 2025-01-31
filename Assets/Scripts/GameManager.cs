@@ -48,15 +48,18 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        Debug.Log("GameManager.StartGame appelé");
         currentScore = 0f;
         timeRemaining = roundDuration;
         isGameActive = true;
+        Debug.Log($"isGameActive mis à {isGameActive}");
         onGameStart.Invoke();
         StartCoroutine(GameTimer());
     }
 
     private IEnumerator GameTimer()
     {
+        Debug.Log("Timer démarré");
         while (timeRemaining > 0 && isGameActive)
         {
             timeRemaining -= Time.deltaTime;
@@ -81,7 +84,26 @@ public class GameManager : MonoBehaviour
     public void AddScore()
     {
         currentScore += scorePerCorrectClick;
-        StartNewRound();
+        
+        // Ajouter des logs pour déboguer
+        Debug.Log($"Bonne carte trouvée ! Score: {currentScore}");
+        Debug.Log($"Temps avant bonus: {timeRemaining}");
+        
+        // Ajouter 5 secondes
+        timeRemaining = Mathf.Min(timeRemaining + 5f, roundDuration);
+        Debug.Log($"Temps après bonus: {timeRemaining}");
+        
+        // Créer un nouveau wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            gridManager.CreateNewWanted();
+            Debug.Log("Nouveau Wanted créé");
+        }
+        else
+        {
+            Debug.LogError("GridManager non trouvé!");
+        }
     }
 
     public Sprite GetRandomSprite()

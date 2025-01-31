@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      choquer_bleu_0: 2184192171750520308
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

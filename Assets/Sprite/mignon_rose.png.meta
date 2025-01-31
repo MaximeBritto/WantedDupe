@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      mignon_rose_0: -1250728884378928431
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

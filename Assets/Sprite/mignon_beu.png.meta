@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      mignon_beu_0: 666350411480500555
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

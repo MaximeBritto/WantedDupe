@@ -147,7 +147,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      choquer_rose_0: 4574446356225412892
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
