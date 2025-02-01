@@ -1875,6 +1875,9 @@ MonoBehaviour:
   onNewWantedCharacter:
     m_PersistentCalls:
       m_Calls: []
+  onScoreChanged:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!4 &1009628042
 Transform:
   m_ObjectHideFlags: 0
@@ -2096,7 +2099,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playAreaWidth: 800
   playAreaHeight: 600
-  numberOfCards: 16
   characterCardPrefab: {fileID: 7396593025451783737, guid: 3c1b4c2a90abb3d4597407f998374765, type: 3}
   gridContainer: {fileID: 1162212313}
   rouletteDuration: 2
@@ -2104,10 +2106,28 @@ MonoBehaviour:
   delayAfterSuccess: 1
   cardSizeMobile: 100
   minSpacingMobile: 10
-  minCards: 10
-  maxCards: 15
   minCardDistance: 100
   cards: []
+  difficultyLevels:
+  - scoreThreshold: 0
+    minCards: 50
+    maxCards: 55
+    moveSpeed: 0.2
+    possibleStates: 0500000006000000
+  - scoreThreshold: 200
+    minCards: 70
+    maxCards: 80
+    moveSpeed: 1
+    possibleStates: 0200000002000000
+  currentLevel:
+    scoreThreshold: 0
+    minCards: 0
+    maxCards: 0
+    moveSpeed: 0
+    possibleStates: 
+  currentState: 0
+  cardSpacing: 100
+  columnSpacing: 150
 --- !u!1 &1210835075
 GameObject:
   m_ObjectHideFlags: 0
@@ -3132,6 +3152,8 @@ MonoBehaviour:
   portraitWantedPosition: {x: 0, y: 800}
   portraitWantedSize: {x: 300, y: 450}
   safeAreaRect: {fileID: 0}
+  difficultyText: {fileID: 0}
+  currentStateText: {fileID: 0}
 --- !u!4 &2031354612
 Transform:
   m_ObjectHideFlags: 0
