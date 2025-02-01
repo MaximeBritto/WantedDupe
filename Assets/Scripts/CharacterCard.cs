@@ -43,11 +43,8 @@ public class CharacterCard : MonoBehaviour
         // Ajuster la taille du collider pour mobile
         if (Application.isMobilePlatform)
         {
-            if (characterImage != null)
-            {
-                // Agrandir légèrement la zone de touch
-                characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
-            }
+            // Agrandir la zone de touch
+            characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
         }
     }
 

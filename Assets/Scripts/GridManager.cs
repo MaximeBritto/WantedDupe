@@ -21,11 +21,16 @@ public class GridManager : MonoBehaviour
     public float delayAfterSuccess = 1f;   // Délai après avoir trouvé le bon wanted
 
     [Header("Mobile Settings")]
-    public float cardSizeMobile = 100f;  // Taille des cartes sur mobile
-    public float minSpacingMobile = 10f; // Espacement minimum entre les cartes
+    public float mobileCardScale = 0.8f;  // Échelle des cartes sur mobile
+    public float mobileSpacing = 80f;     // Espacement pour mobile
 
     [Header("Card Settings")]
     public float minCardDistance = 100f;  // Distance minimale entre les cartes
+
+    [Header("Board Settings")]
+    public RectTransform gameBoardRect;  // Référence au RectTransform du GameBoard
+    private float boardWidth;
+    private float boardHeight;
 
     public List<CharacterCard> cards = new List<CharacterCard>();
     private CharacterCard wantedCard;
@@ -58,7 +63,13 @@ public class GridManager : MonoBehaviour
 
     [Header("Layout Settings")]
     public float cardSpacing = 100f;   // Espacement entre les cartes
-    public float columnSpacing = 150f; // Espacement entre les colonnes
+    [Header("Column Settings")]
+    public float columnSpacing = 150f;        // Espacement entre les colonnes
+    public int maxColumns = 6;                // Nombre maximum de colonnes autorisé
+    [Range(0.1f, 1f)]
+    public float boardWidthUsage = 0.9f;      // Pourcentage de la largeur du board à utiliser (90% par défaut)
+    [Range(0.1f, 1f)]
+    public float boardHeightUsage = 0.9f;     // Pourcentage de la hauteur du board à utiliser
 
     private List<Sequence> activeSequences = new List<Sequence>();  // Pour garder trace des séquences actives
 
@@ -83,27 +94,35 @@ public class GridManager : MonoBehaviour
         {
             Debug.LogError("GridContainer non assigné!");
         }
+
+        // Récupérer les dimensions du GameBoard
+        if (gameBoardRect != null)
+        {
+            boardWidth = gameBoardRect.rect.width;
+            boardHeight = gameBoardRect.rect.height;
+        }
     }
 
     private void AdjustForMobileIfNeeded()
     {
         if (Application.isMobilePlatform)
         {
-            // Ajuster le nombre de cartes selon la taille de l'écran
-            float screenRatio = (float)Screen.width / Screen.height;
-            if (screenRatio < 0.7f)  // Format portrait
-            {
-                // Utiliser les valeurs du niveau actuel
-                if (currentLevel != null)
-                {
-                    currentLevel.minCards = Mathf.Max(12, currentLevel.minCards - 4);
-                    currentLevel.maxCards = Mathf.Max(16, currentLevel.maxCards - 4);
-                }
-            }
-            
-            // Ajuster la zone de jeu
+            // Ajuster la zone de jeu pour le format portrait
             playAreaWidth = Screen.width * 0.9f;
             playAreaHeight = Screen.height * 0.6f;
+            
+            // Ajuster l'espacement
+            cardSpacing = mobileSpacing;
+            columnSpacing = mobileSpacing * 1.2f;
+            
+            // Ajuster la taille des cartes
+            foreach (var card in cards)
+            {
+                if (card != null)
+                {
+                    card.transform.localScale = Vector3.one * mobileCardScale;
+                }
+            }
         }
     }
 
@@ -408,31 +427,22 @@ public class GridManager : MonoBehaviour
     private void ArrangeCardsInLine()
     {
         int totalCards = cards.Count;
-        float availableWidth = playAreaWidth * 0.9f; // On prend 90% de la largeur disponible
         
         // Calculer combien de cartes peuvent tenir sur une ligne
-        int cardsPerRow = Mathf.FloorToInt(availableWidth / cardSpacing);
-        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
+        float maxCardsPerRow = Mathf.Floor(boardWidth * 0.9f / cardSpacing);
+        int rows = Mathf.CeilToInt(totalCards / maxCardsPerRow);
+        int cardsPerRow = Mathf.CeilToInt(totalCards / rows);
         
-        // Calculer la position de départ pour centrer les lignes
         float startX = -(cardsPerRow * cardSpacing) / 2;
-        float startY = (rows * cardSpacing) / 2;
+        float startY = (boardHeight / 2) - (rows * cardSpacing / 2);
         
         for (int i = 0; i < totalCards; i++)
         {
             int row = i / cardsPerRow;
             int col = i % cardsPerRow;
             
-            // Pour la dernière ligne, centrer les cartes si elle n'est pas complète
-            float rowOffset = 0;
-            if (row == rows - 1 && totalCards % cardsPerRow != 0)
-            {
-                int cardsInLastRow = totalCards % cardsPerRow;
-                rowOffset = (cardsPerRow - cardsInLastRow) * cardSpacing / 2;
-            }
-            
             Vector2 targetPos = new Vector2(
-                startX + (col * cardSpacing) + rowOffset,
+                startX + (col * cardSpacing),
                 startY - (row * cardSpacing)
             );
             
@@ -445,25 +455,38 @@ public class GridManager : MonoBehaviour
     private void ArrangeCardsInColumns()
     {
         int totalCards = cards.Count;
-        int columns = Mathf.CeilToInt(Mathf.Sqrt(totalCards));
-        int rows = Mathf.CeilToInt((float)totalCards / columns);
+        
+        // Utiliser directement maxColumns ou moins si l'espace ne le permet pas
+        float maxPossibleColumns = Mathf.Floor(boardWidth * boardWidthUsage / columnSpacing);
+        int columns = Mathf.Min(maxColumns, (int)maxPossibleColumns);
+        
+        // Forcer l'utilisation du nombre de colonnes défini
+        int cardsPerColumn = Mathf.CeilToInt((float)totalCards / columns);
+        
+        // Calculer l'espacement vertical
+        float verticalSpacing = Mathf.Min(cardSpacing, (boardHeight * boardHeightUsage) / cardsPerColumn);
         
         float startX = -(columns * columnSpacing) / 2;
-        float startY = (rows * cardSpacing) / 2;
+        float startY = (boardHeight / 2) - (verticalSpacing / 2);
+
+        // Distribuer les cartes de haut en bas, colonne par colonne
+        int currentCard = 0;
         
-        for (int i = 0; i < totalCards; i++)
+        // Pour chaque colonne
+        for (int col = 0; col < columns && currentCard < totalCards; col++)
         {
-            int row = i / columns;
-            int col = i % columns;
-            
-            Vector2 targetPos = new Vector2(
-                startX + (col * columnSpacing),
-                startY - (row * cardSpacing)
-            );
-            
-            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
-            rectTransform.DOAnchorPos(targetPos, 0.5f)
-                .SetEase(Ease.OutBack);
+            // Remplir la colonne de haut en bas
+            for (int row = 0; row < cardsPerColumn && currentCard < totalCards; row++)
+            {
+                Vector2 targetPos = new Vector2(
+                    startX + (col * columnSpacing),
+                    startY - (row * verticalSpacing)
+                );
+                
+                RectTransform rectTransform = cards[currentCard].GetComponent<RectTransform>();
+                rectTransform.anchoredPosition = targetPos;
+                currentCard++;
+            }
         }
     }
 
@@ -620,14 +643,12 @@ public class GridManager : MonoBehaviour
                 
                 RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
                 float yPos = moveUp ? 
-                    startY - (i * (playAreaHeight / cardsPerColumn)) :
-                    endY + (i * (playAreaHeight / cardsPerColumn));
+                    startY - (i * cardSpacing) :
+                    endY + (i * cardSpacing);
                 
                 rectTransform.anchoredPosition = new Vector2(xPos, yPos);
                 
-                // Utiliser directement la vitesse du niveau
-                float speed = 100f * currentLevel.moveSpeed; // Base speed à 100 au lieu de 200
-                
+                float speed = 100f * currentLevel.moveSpeed;
                 Sequence sequence = DOTween.Sequence()
                     .SetLoops(-1)
                     .SetUpdate(true)
@@ -643,7 +664,7 @@ public class GridManager : MonoBehaviour
                         rectTransform.anchoredPosition = new Vector2(xPos, y);
                     });
                 
-                activeSequences.Add(sequence);  // Garder trace de la séquence
+                activeSequences.Add(sequence);
             }
         }
     }

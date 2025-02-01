@@ -8,6 +8,9 @@ public class CardAnimation : MonoBehaviour
     [SerializeField] private float correctAnimationDuration = 0.3f;
     [SerializeField] private float wrongAnimationDuration = 0.3f;
     
+    [Header("Mobile Settings")]
+    [SerializeField] private float mobileAnimationScale = 0.8f;
+    
     private RectTransform rectTransform;
     private Vector3 originalScale;
     private Vector3 originalPosition;
@@ -17,6 +20,17 @@ public class CardAnimation : MonoBehaviour
         rectTransform = GetComponent<RectTransform>();
         originalScale = transform.localScale;
         originalPosition = rectTransform.anchoredPosition;
+    }
+
+    private void Start()
+    {
+        if (Application.isMobilePlatform)
+        {
+            // Réduire l'amplitude des animations
+            correctAnimationDuration *= 0.8f;
+            wrongAnimationDuration *= 0.8f;
+            originalScale *= mobileAnimationScale;
+        }
     }
 
     private void OnEnable()

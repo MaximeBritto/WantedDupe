@@ -34,9 +34,13 @@ public class UIManager : MonoBehaviour
     [Header("Roulette Effect")]
     public float rouletteDuration = 2f;      // Durée totale de la roulette
     public float changeImageDelay = 0.1f;    // Délai entre chaque changement d'image
-    public float fullscreenScale = 2f;       // Échelle maximale du panneau
-    public Vector2 finalWantedPosition = new Vector2(0, 400f); // Position Y en haut de l'écran
-    public Vector2 finalWantedSize = new Vector2(200, 300);    // Taille finale plus petite
+
+    [Header("Wanted Panel Sizes")]
+    public Vector2 finalWantedPosition = new Vector2(0, -100);  // Position finale en haut
+    public Vector2 finalWantedSize = new Vector2(300, 400);     // Taille finale
+    public Vector2 rouletteWantedSize = new Vector2(500, 600);  // Taille pendant la roulette
+    public Vector2 roulettePosition = new Vector2(0, 0);        // Position pendant la roulette
+    public float rouletteScale = 1.2f;                          // Échelle pendant la roulette
     public bool isRouletteRunning = false;
 
     [Header("Game Board")]
@@ -46,8 +50,8 @@ public class UIManager : MonoBehaviour
     [Header("Mobile Settings")]
     public bool isMobileDevice;
     public float mobileScaleFactor = 0.7f;  // Facteur d'échelle pour mobile
-    public Vector2 portraitWantedPosition = new Vector2(0, 800f);  // Plus haut en mode portrait
-    public Vector2 portraitWantedSize = new Vector2(300, 450f);    // Taille adaptée au portrait
+    public Vector2 mobileWantedSize = new Vector2(200, 300);    // Taille du wanted en mode portrait
+    public Vector2 mobileWantedPosition = new Vector2(0, 800);  // Position du wanted en mode portrait
 
     [Header("Safe Area")]
     public RectTransform safeAreaRect;
@@ -71,9 +75,9 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         // Configuration des ordres de Canvas
-        gridCanvas.sortingOrder = 0;        // La grille en dessous
-        uiCanvas.sortingOrder = 1;          // L'UI au-dessus de la grille
-        overlayCanvas.sortingOrder = 2;     // Les menus tout au-dessus
+        gridCanvas.sortingOrder = 0;        
+        uiCanvas.sortingOrder = 1;          
+        overlayCanvas.sortingOrder = 2;     
 
         // Désactiver les raycasts sur les panels UI
         DisableRaycastOnPanel(wantedPanel);
@@ -86,6 +90,7 @@ public class UIManager : MonoBehaviour
         
         menuPanel.SetActive(true);
         gameOverPanel.SetActive(false);
+        // Le WantedPanel reste visible par défaut
         
         startButton.onClick.AddListener(StartGame);
         restartButton.onClick.AddListener(StartGame);
@@ -99,59 +104,10 @@ public class UIManager : MonoBehaviour
         // Détecter si on est sur mobile
         isMobileDevice = Application.isMobilePlatform;
         
-        // Ajuster les tailles pour mobile
         if (isMobileDevice)
         {
-            // Vérifier si on est en mode portrait
-            bool isPortrait = Screen.height > Screen.width;
-            if (isPortrait)
-            {
-                finalWantedSize = portraitWantedSize;
-                finalWantedPosition = portraitWantedPosition;
-                
-                // Ajuster la zone de jeu pour le mode portrait
-                var gridManager = FindObjectOfType<GridManager>();
-                if (gridManager != null)
-                {
-                    gridManager.playAreaWidth = Screen.width * 0.9f;
-                    gridManager.playAreaHeight = Screen.height * 0.5f;  // Moins haut pour laisser de la place au wanted
-                }
-            }
-            else
-            {
-                // Ajuster la taille du wanted
-                finalWantedSize = new Vector2(150, 225);  // Plus petit sur mobile
-                finalWantedPosition = new Vector2(0, Screen.height * 0.4f);  // Position adaptée
-                
-                // Ajuster la taille des cartes
-                var cardScale = Vector3.one * mobileScaleFactor;
-                foreach (var card in FindObjectsOfType<CharacterCard>())
-                {
-                    card.transform.localScale = cardScale;
-                }
-                
-                // Ajuster la zone de jeu
-                var gridManager = FindObjectOfType<GridManager>();
-                if (gridManager != null)
-                {
-                    gridManager.playAreaWidth = Screen.width * 0.9f;
-                    gridManager.playAreaHeight = Screen.height * 0.7f;
-                }
-
-                // Appliquer la safe area
-                Rect safeArea = Screen.safeArea;
-                Vector2 anchorMin = safeArea.position;
-                Vector2 anchorMax = anchorMin + safeArea.size;
-                
-                anchorMin.x /= Screen.width;
-                anchorMin.y /= Screen.height;
-                anchorMax.x /= Screen.width;
-                anchorMax.y /= Screen.height;
-                
-                safeAreaRect.anchorMin = anchorMin;
-                safeAreaRect.anchorMax = anchorMax;
-                safeAreaRect.sizeDelta = Vector2.zero;
-            }
+            // Configurer pour le format portrait
+            ConfigureForPortrait();
         }
     }
 
@@ -184,41 +140,32 @@ public class UIManager : MonoBehaviour
     private void UpdateWantedCharacter(CharacterCard character)
     {
         if (isRouletteRunning) return;
+        
+        // Ne pas activer le panel ici, laissez WantedRouletteEffect le faire
         StartCoroutine(WantedRouletteEffect(character));
     }
 
     private IEnumerator WantedRouletteEffect(CharacterCard finalCharacter)
     {
         isRouletteRunning = true;
-
-        // Cacher uniquement la grille, garder le score/timer visible
+        
+        // Désactiver temporairement la grille
         gridCanvas.gameObject.SetActive(false);
         
-        // Mettre le jeu en pause
-        GameManager.Instance.PauseGame();
+        // Animation de descente et agrandissement
+        Sequence startSequence = DOTween.Sequence();
+        startSequence.Join(wantedPanel.DOAnchorPos(roulettePosition, 0.5f))
+                    .Join(wantedPanel.DOSizeDelta(rouletteWantedSize, 0.5f))
+                    .Join(wantedPanel.transform.DOScale(rouletteScale, 0.5f));
 
-        // Attendre que les cartes finissent leur animation actuelle
-        yield return new WaitForSeconds(1f);
-
-        // Cacher le panneau wanted
-        wantedPanel.gameObject.SetActive(false);
-        
-        // Attendre un court instant
-        yield return new WaitForSeconds(0.5f);
-
-        // Activer et animer le panneau wanted en plein écran
-        wantedPanel.gameObject.SetActive(true);
-        wantedPanel.transform.DOScale(fullscreenScale, 0.5f);
-        wantedPanel.DOAnchorPos(Vector2.zero, 0.5f);
+        yield return startSequence.WaitForCompletion();
 
         // Effet de roulette
         float elapsedTime = 0;
         while (elapsedTime < rouletteDuration)
         {
-            // Choisir un sprite aléatoire
             Sprite randomSprite = GameManager.Instance.GetRandomSprite();
             wantedCharacterImage.sprite = randomSprite;
-
             yield return new WaitForSeconds(changeImageDelay);
             elapsedTime += changeImageDelay;
         }
@@ -235,31 +182,28 @@ public class UIManager : MonoBehaviour
         // Afficher le sprite final
         wantedCharacterImage.sprite = finalCharacter.characterSprite;
         wantedText.text = "WANTED!";
-        AudioManager.Instance.PlayCorrect();  // Son final
+        AudioManager.Instance.PlayCorrect();
 
         yield return new WaitForSeconds(0.5f);
 
-        // Animation de transition vers la position finale en haut
-        Sequence sequence = DOTween.Sequence();
-        sequence.Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
-               .Join(wantedPanel.DOAnchorPos(finalWantedPosition, 0.5f))
-               .Join(wantedPanel.transform.DOScale(1f, 0.5f));
+        // Animation de remontée et rétrécissement
+        Sequence endSequence = DOTween.Sequence();
+        endSequence.Join(wantedPanel.DOAnchorPos(finalWantedPosition, 0.5f))
+                  .Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
+                  .Join(wantedPanel.transform.DOScale(1f, 0.5f));
 
-        yield return sequence.WaitForCompletion();
+        yield return endSequence.WaitForCompletion();
 
-        // Réactiver les éléments de jeu dans l'ordre
-        gameInfoPanel.gameObject.SetActive(true);  // Réafficher le score/timer
-        yield return new WaitForSeconds(0.3f);     // Petit délai
-
-        // Animer l'apparition des cartes
+        // Réactiver la grille et les cartes
+        gridCanvas.gameObject.SetActive(true);
+        
+        // Réactiver et animer les cartes
         var gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
-            gridCanvas.gameObject.SetActive(true);
-            gridManager.AnimateCardsEntry();
+            gridManager.AnimateCardsEntry();  // Cette méthode réactive et anime les cartes
         }
 
-        // À la fin, réactiver le jeu
         GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
     }
@@ -268,6 +212,14 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+
+        // Réinitialiser le WantedPanel à sa taille normale
+        if (wantedPanel != null)
+        {
+            wantedPanel.transform.localScale = Vector3.one;
+            wantedPanel.sizeDelta = finalWantedSize;
+            wantedPanel.anchoredPosition = finalWantedPosition;
+        }
     }
 
     private void OnGameOver()
@@ -302,5 +254,17 @@ public class UIManager : MonoBehaviour
             };
             currentStateText.text = stateText;
         }
+    }
+
+    private void ConfigureForPortrait()
+    {
+        // Ajuster le wanted
+        finalWantedSize = mobileWantedSize;
+        finalWantedPosition = mobileWantedPosition;
+        
+        // Ajuster la taille des textes
+        if (scoreText != null) scoreText.fontSize = 40;
+        if (timerText != null) timerText.fontSize = 40;
+        if (wantedText != null) wantedText.fontSize = 36;
     }
 } 
