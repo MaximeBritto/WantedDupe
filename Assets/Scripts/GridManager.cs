@@ -8,7 +8,6 @@ public class GridManager : MonoBehaviour
     [Header("Grid Settings")]
     public float playAreaWidth = 1200f;    // Zone de jeu plus large
     public float playAreaHeight = 800f;    // Zone de jeu plus haute
-    public int numberOfCards = 24;         // Plus de cartes
     
     [Header("Prefabs")]
     public GameObject characterCardPrefab;
@@ -26,16 +25,52 @@ public class GridManager : MonoBehaviour
     public float minSpacingMobile = 10f; // Espacement minimum entre les cartes
 
     [Header("Card Settings")]
-    public int minCards = 16;
-    public int maxCards = 24;
     public float minCardDistance = 100f;  // Distance minimale entre les cartes
 
     public List<CharacterCard> cards = new List<CharacterCard>();
     private CharacterCard wantedCard;
 
+    public enum GridState
+    {
+        Aligned,            // Cartes alignées en ligne
+        Columns,            // Cartes en colonnes
+        Static,             // Cartes placées aléatoirement mais immobiles
+        SlowMoving,         // Cartes en mouvement lent
+        FastMoving,         // Cartes en mouvement rapide
+        AlignedMoving,      // Cartes alignées qui se déplacent
+        ColumnsMoving       // Colonnes qui se déplacent
+    }
+
+    [System.Serializable]
+    public class DifficultyLevel
+    {
+        public int scoreThreshold;     // Score minimum pour ce niveau
+        public int minCards;           // Nombre minimum de cartes
+        public int maxCards;           // Nombre maximum de cartes
+        public float moveSpeed;        // Vitesse de déplacement des cartes
+        public GridState[] possibleStates;  // États possibles pour ce niveau
+    }
+
+    [Header("Difficulty Settings")]
+    public DifficultyLevel[] difficultyLevels;  // Tu pourras configurer ça dans l'éditeur
+    [SerializeField] private DifficultyLevel currentLevel;  // Sera visible dans l'Inspector
+    [SerializeField] private GridState currentState;        // Sera visible dans l'Inspector
+
+    [Header("Layout Settings")]
+    public float cardSpacing = 100f;   // Espacement entre les cartes
+    public float columnSpacing = 150f; // Espacement entre les colonnes
+
+    private List<Sequence> activeSequences = new List<Sequence>();  // Pour garder trace des séquences actives
+
     private void Start()
     {
         GameManager.Instance.onGameStart.AddListener(InitializeGrid);
+        GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
+        
+        if (difficultyLevels == null || difficultyLevels.Length == 0)
+        {
+            Debug.LogError("Aucun niveau de difficulté configuré!");
+        }
         
         // Vérifier la configuration du GridContainer
         if (gridContainer != null)
@@ -58,7 +93,12 @@ public class GridManager : MonoBehaviour
             float screenRatio = (float)Screen.width / Screen.height;
             if (screenRatio < 0.7f)  // Format portrait
             {
-                numberOfCards = 16;  // Moins de cartes sur mobile en portrait
+                // Utiliser les valeurs du niveau actuel
+                if (currentLevel != null)
+                {
+                    currentLevel.minCards = Mathf.Max(12, currentLevel.minCards - 4);
+                    currentLevel.maxCards = Mathf.Max(16, currentLevel.maxCards - 4);
+                }
             }
             
             // Ajuster la zone de jeu
@@ -107,7 +147,9 @@ public class GridManager : MonoBehaviour
     public void InitializeGrid()
     {
         AdjustForMobileIfNeeded();
-        Debug.Log("Début InitializeGrid");
+        
+        // Mettre à jour le niveau de difficulté au début
+        UpdateDifficultyLevel();
         
         // Nettoyer la grille existante
         foreach (var card in cards)
@@ -115,17 +157,16 @@ public class GridManager : MonoBehaviour
             if (card != null) Destroy(card.gameObject);
         }
         cards.Clear();
-        Debug.Log($"Grid nettoyée, nombre de cartes : {cards.Count}");
 
+        // Utiliser le nombre de cartes du niveau actuel
+        int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
+        
         // Créer le wanted card avec un sprite aléatoire
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
         List<Sprite> usedSprites = new List<Sprite>();
         usedSprites.Add(wantedSprite);
 
-        // Nombre aléatoire de cartes
-        numberOfCards = Random.Range(minCards, maxCards + 1);
-
-        // Créer toutes les cartes avec des positions aléatoires
+        // Créer toutes les cartes
         for (int i = 0; i < numberOfCards; i++)
         {
             GameObject cardObj = Instantiate(characterCardPrefab, gridContainer);
@@ -179,6 +220,9 @@ public class GridManager : MonoBehaviour
         }
         
         // Les cartes seront activées par AnimateCardsEntry plus tard
+
+        // Arranger les cartes selon l'état actuel
+        ArrangeCardsBasedOnState();
     }
 
     private void ShuffleCardsOrder()
@@ -191,6 +235,7 @@ public class GridManager : MonoBehaviour
 
     public void CreateNewWanted()
     {
+        UpdateDifficultyOnScoreChange();  // Mettre à jour la difficulté
         StartCoroutine(RouletteEffect());
     }
 
@@ -260,20 +305,346 @@ public class GridManager : MonoBehaviour
         
         foreach (var card in cards)
         {
-            if (card == null)
-            {
-                Debug.LogError("Carte null trouvée!");
-                continue;
-            }
+            if (card == null) continue;
             
             // Activer la carte
             card.gameObject.SetActive(true);
             card.transform.localScale = Vector3.zero;
             
-            // Animation d'apparition
+            // Animation d'apparition de base
             card.transform.DOScale(Vector3.one, 0.3f)
                 .SetEase(Ease.OutBack)
-                .OnComplete(() => StartContinuousCardMovement(card));
+                .OnComplete(() => {
+                    // Appliquer l'arrangement selon l'état actuel
+                    ArrangeCardsBasedOnState();
+                });
+        }
+    }
+
+    private void InitializeDifficultyLevels()
+    {
+        difficultyLevels = new DifficultyLevel[]
+        {
+            new DifficultyLevel {
+                scoreThreshold = 0,
+                minCards = 15,
+                maxCards = 20,
+                moveSpeed = 2f,
+                possibleStates = new GridState[] { GridState.Aligned, GridState.Static }
+            },
+            new DifficultyLevel {
+                scoreThreshold = 500,
+                minCards = 18,
+                maxCards = 24,
+                moveSpeed = 3f,
+                possibleStates = new GridState[] { GridState.Aligned, GridState.Columns, GridState.Static }
+            },
+            new DifficultyLevel {
+                scoreThreshold = 1000,
+                minCards = 20,
+                maxCards = 28,
+                moveSpeed = 4f,
+                possibleStates = new GridState[] { GridState.Static, GridState.SlowMoving }
+            },
+            new DifficultyLevel {
+                scoreThreshold = 2000,
+                minCards = 24,
+                maxCards = 32,
+                moveSpeed = 5f,
+                possibleStates = new GridState[] { GridState.SlowMoving, GridState.FastMoving }
+            }
+        };
+    }
+
+    private void UpdateDifficultyLevel()
+    {
+        float currentScore = GameManager.Instance.currentScore;
+        
+        // Trouver le niveau approprié
+        currentLevel = difficultyLevels[0];
+        foreach (var level in difficultyLevels)
+        {
+            if (currentScore >= level.scoreThreshold)
+                currentLevel = level;
+        }
+
+        // Choisir un état aléatoire parmi ceux possibles
+        currentState = currentLevel.possibleStates[Random.Range(0, currentLevel.possibleStates.Length)];
+    }
+
+    private void ArrangeCardsBasedOnState()
+    {
+        StopAllCardMovements();  // Arrêter TOUS les mouvements avant de changer d'état
+        
+        // Attendre une frame pour s'assurer que tous les mouvements sont arrêtés
+        DOVirtual.DelayedCall(0.1f, () => {
+            switch (currentState)
+            {
+                case GridState.Aligned:
+                    ArrangeCardsInLine();
+                    break;
+                case GridState.Columns:
+                    ArrangeCardsInColumns();
+                    break;
+                case GridState.Static:
+                    ArrangeCardsRandomly(false);
+                    break;
+                case GridState.SlowMoving:
+                    ArrangeCardsRandomly(true, currentLevel.moveSpeed);
+                    break;
+                case GridState.FastMoving:
+                    ArrangeCardsRandomly(true, currentLevel.moveSpeed * 1.5f);
+                    break;
+                case GridState.AlignedMoving:
+                    StartAlignedMovement();
+                    break;
+                case GridState.ColumnsMoving:
+                    StartColumnsMovement();
+                    break;
+            }
+        });
+    }
+
+    private void ArrangeCardsInLine()
+    {
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f; // On prend 90% de la largeur disponible
+        
+        // Calculer combien de cartes peuvent tenir sur une ligne
+        int cardsPerRow = Mathf.FloorToInt(availableWidth / cardSpacing);
+        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
+        
+        // Calculer la position de départ pour centrer les lignes
+        float startX = -(cardsPerRow * cardSpacing) / 2;
+        float startY = (rows * cardSpacing) / 2;
+        
+        for (int i = 0; i < totalCards; i++)
+        {
+            int row = i / cardsPerRow;
+            int col = i % cardsPerRow;
+            
+            // Pour la dernière ligne, centrer les cartes si elle n'est pas complète
+            float rowOffset = 0;
+            if (row == rows - 1 && totalCards % cardsPerRow != 0)
+            {
+                int cardsInLastRow = totalCards % cardsPerRow;
+                rowOffset = (cardsPerRow - cardsInLastRow) * cardSpacing / 2;
+            }
+            
+            Vector2 targetPos = new Vector2(
+                startX + (col * cardSpacing) + rowOffset,
+                startY - (row * cardSpacing)
+            );
+            
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            rectTransform.DOAnchorPos(targetPos, 0.5f)
+                .SetEase(Ease.OutBack);
+        }
+    }
+
+    private void ArrangeCardsInColumns()
+    {
+        int totalCards = cards.Count;
+        int columns = Mathf.CeilToInt(Mathf.Sqrt(totalCards));
+        int rows = Mathf.CeilToInt((float)totalCards / columns);
+        
+        float startX = -(columns * columnSpacing) / 2;
+        float startY = (rows * cardSpacing) / 2;
+        
+        for (int i = 0; i < totalCards; i++)
+        {
+            int row = i / columns;
+            int col = i % columns;
+            
+            Vector2 targetPos = new Vector2(
+                startX + (col * columnSpacing),
+                startY - (row * cardSpacing)
+            );
+            
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            rectTransform.DOAnchorPos(targetPos, 0.5f)
+                .SetEase(Ease.OutBack);
+        }
+    }
+
+    private void ArrangeCardsRandomly(bool moving, float speed = 2f)
+    {
+        StopAllCardMovements(); // Arrêter les mouvements précédents
+        
+        foreach (var card in cards)
+        {
+            RectTransform rectTransform = card.GetComponent<RectTransform>();
+            Vector2 randomPos = GetValidCardPosition();
+            
+            if (moving)
+            {
+                StartContinuousCardMovement(card, speed);
+            }
+            else
+            {
+                rectTransform.DOAnchorPos(randomPos, 0.5f)
+                    .SetEase(Ease.OutBack);
+            }
+        }
+    }
+
+    // Version modifiée de StartContinuousCardMovement avec vitesse paramétrable
+    private void StartContinuousCardMovement(CharacterCard card, float speed)
+    {
+        RectTransform rectTransform = card.GetComponent<RectTransform>();
+        
+        // Arrêter les animations précédentes
+        rectTransform.DOKill();
+        
+        // Calculer la durée en fonction de la vitesse
+        float duration = 4f / speed;
+        
+        void StartNewMovement()
+        {
+            Vector2 targetPos = GetValidCardPosition();
+            float distance = Vector2.Distance(rectTransform.anchoredPosition, targetPos);
+            float adjustedDuration = distance / (speed * 100f); // Ajuster la durée selon la distance
+            
+            rectTransform.DOAnchorPos(targetPos, adjustedDuration)
+                .SetEase(Ease.InOutQuad)
+                .OnComplete(StartNewMovement);
+        }
+        
+        StartNewMovement();
+    }
+
+    // Méthode pour mettre à jour la difficulté quand le score change
+    public void UpdateDifficultyOnScoreChange()
+    {
+        UpdateDifficultyLevel();
+        ArrangeCardsBasedOnState();
+        
+        // Mettre à jour le texte de difficulté dans l'UI
+        UIManager.Instance.UpdateDifficultyText(currentLevel.scoreThreshold, currentState);
+    }
+
+    // Méthode pour arrêter tous les mouvements
+    public void StopAllCardMovements()
+    {
+        // Arrêter toutes les séquences actives
+        foreach (var sequence in activeSequences)
+        {
+            if (sequence != null)
+                sequence.Kill();
+        }
+        activeSequences.Clear();
+
+        // Arrêter aussi les tweens individuels sur les cartes
+        foreach (var card in cards)
+        {
+            if (card != null)
+            {
+                RectTransform rectTransform = card.GetComponent<RectTransform>();
+                rectTransform.DOKill();
+            }
+        }
+    }
+
+    private void OnScoreChanged(float newScore)
+    {
+        UpdateDifficultyOnScoreChange();
+    }
+
+    private void StartAlignedMovement()
+    {
+        StopAllCardMovements();  // S'assurer que tout mouvement précédent est arrêté
+        
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f;
+        int cardsPerRow = Mathf.FloorToInt(availableWidth / cardSpacing);
+        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
+        
+        float startX = -playAreaWidth/2;
+        float endX = playAreaWidth/2;
+        float startY = (rows * cardSpacing) / 2;
+        
+        for (int i = 0; i < totalCards; i++)
+        {
+            int row = i / cardsPerRow;
+            int col = i % cardsPerRow;
+            bool moveRight = row % 2 == 0;
+            
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            float yPos = startY - (row * cardSpacing);
+            float xPos = moveRight ? startX + (col * cardSpacing) : endX - (col * cardSpacing);
+            rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+            
+            // Utiliser directement la vitesse du niveau
+            float speed = 100f * currentLevel.moveSpeed; // Base speed à 100 au lieu de 200
+            
+            Sequence sequence = DOTween.Sequence()
+                .SetLoops(-1)
+                .SetUpdate(true)
+                .OnUpdate(() => {
+                    float x = rectTransform.anchoredPosition.x;
+                    x += moveRight ? speed * Time.deltaTime : -speed * Time.deltaTime;
+                    
+                    if (moveRight && x > endX)
+                        x = startX;
+                    else if (!moveRight && x < startX)
+                        x = endX;
+                    
+                    rectTransform.anchoredPosition = new Vector2(x, yPos);
+                });
+            
+            activeSequences.Add(sequence);  // Garder trace de la séquence
+        }
+    }
+
+    private void StartColumnsMovement()
+    {
+        StopAllCardMovements();  // S'assurer que tout mouvement précédent est arrêté
+        
+        int totalCards = cards.Count;
+        int columns = Mathf.CeilToInt(Mathf.Sqrt(totalCards));
+        int cardsPerColumn = Mathf.CeilToInt((float)totalCards / columns);
+        
+        float startX = -(columns * columnSpacing) / 2;
+        float startY = playAreaHeight/2;
+        float endY = -playAreaHeight/2;
+        
+        for (int col = 0; col < columns; col++)
+        {
+            bool moveUp = col % 2 == 0;
+            float xPos = startX + (col * columnSpacing);
+            
+            for (int i = 0; i < cardsPerColumn && (col * cardsPerColumn + i) < cards.Count; i++)
+            {
+                int cardIndex = col * cardsPerColumn + i;
+                if (cardIndex >= cards.Count) break;
+                
+                RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
+                float yPos = moveUp ? 
+                    startY - (i * (playAreaHeight / cardsPerColumn)) :
+                    endY + (i * (playAreaHeight / cardsPerColumn));
+                
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+                
+                // Utiliser directement la vitesse du niveau
+                float speed = 100f * currentLevel.moveSpeed; // Base speed à 100 au lieu de 200
+                
+                Sequence sequence = DOTween.Sequence()
+                    .SetLoops(-1)
+                    .SetUpdate(true)
+                    .OnUpdate(() => {
+                        float y = rectTransform.anchoredPosition.y;
+                        y += moveUp ? -speed * Time.deltaTime : speed * Time.deltaTime;
+                        
+                        if (moveUp && y < endY)
+                            y = startY;
+                        else if (!moveUp && y > startY)
+                            y = endY;
+                        
+                        rectTransform.anchoredPosition = new Vector2(xPos, y);
+                    });
+                
+                activeSequences.Add(sequence);  // Garder trace de la séquence
+            }
         }
     }
 } 

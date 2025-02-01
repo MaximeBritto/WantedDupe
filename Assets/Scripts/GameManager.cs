@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour
     public UnityEvent onGameStart = new UnityEvent();
     public UnityEvent onGameOver = new UnityEvent();
     public UnityEvent<CharacterCard> onNewWantedCharacter = new UnityEvent<CharacterCard>();
+    public UnityEvent<float> onScoreChanged = new UnityEvent<float>();
 
     private System.Random random;
     private bool isPaused = false;
@@ -133,6 +134,7 @@ public class GameManager : MonoBehaviour
     public void AddScore()
     {
         currentScore += scorePerCorrectClick;
+        onScoreChanged.Invoke(currentScore);  // Déclencher l'événement
         
         // Ajouter des logs pour déboguer
         Debug.Log($"Bonne carte trouvée ! Score: {currentScore}");

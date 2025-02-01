@@ -52,6 +52,10 @@ public class UIManager : MonoBehaviour
     [Header("Safe Area")]
     public RectTransform safeAreaRect;
 
+    [Header("Difficulty Display")]
+    public TextMeshProUGUI difficultyText;      // Pour afficher le niveau
+    public TextMeshProUGUI currentStateText;     // Pour afficher l'état actuel
+
     private void Awake()
     {
         if (Instance == null)
@@ -276,5 +280,27 @@ public class UIManager : MonoBehaviour
     private void StartGame()
     {
         GameManager.Instance.StartGame();
+    }
+
+    public void UpdateDifficultyText(int threshold, GridManager.GridState state)
+    {
+        if (difficultyText != null)
+        {
+            difficultyText.text = $"Niveau {threshold/500 + 1}";
+        }
+
+        if (currentStateText != null)
+        {
+            string stateText = state switch
+            {
+                GridManager.GridState.Aligned => "Mode Aligné",
+                GridManager.GridState.Columns => "Mode Colonnes",
+                GridManager.GridState.Static => "Mode Statique",
+                GridManager.GridState.SlowMoving => "Mode Mobile Lent",
+                GridManager.GridState.FastMoving => "Mode Mobile Rapide",
+                _ => state.ToString()
+            };
+            currentStateText.text = stateText;
+        }
     }
 } 
