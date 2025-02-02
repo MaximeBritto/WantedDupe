@@ -2446,8 +2446,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 800, y: 1200}
+  m_AnchoredPosition: {x: 0, y: -250}
+  m_SizeDelta: {x: 900, y: 1200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1064159636
 MonoBehaviour:
@@ -2614,8 +2614,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2cdabb6cfd475524e91fa2a6f9bf49f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playAreaWidth: 800
-  playAreaHeight: 600
+  useGameBoardSize: 1
+  playAreaWidth: 0
+  playAreaHeight: 0
   characterCardPrefab: {fileID: 7396593025451783737, guid: 3c1b4c2a90abb3d4597407f998374765, type: 3}
   gridContainer: {fileID: 1064159635}
   rouletteDuration: 2
@@ -2624,31 +2625,38 @@ MonoBehaviour:
   mobileCardScale: 0.8
   mobileSpacing: 80
   minCardDistance: 100
-  gameBoardRect: {fileID: 0}
+  gameBoardRect: {fileID: 1064159635}
   cards: []
   difficultyLevels:
   - scoreThreshold: 0
-    minCards: 50
-    maxCards: 55
-    moveSpeed: 0.2
-    possibleStates: 0300000002000000
+    minCards: 45
+    maxCards: 45
+    moveSpeed: 1.5
+    possibleStates: 09000000
+    fixedColumns: 5
+    fixedColumnSpacing: 150
   - scoreThreshold: 200
     minCards: 70
     maxCards: 80
     moveSpeed: 1
     possibleStates: 0200000002000000
+    fixedColumns: 2
+    fixedColumnSpacing: 150
   currentLevel:
     scoreThreshold: 0
     minCards: 0
     maxCards: 0
     moveSpeed: 0
     possibleStates: 
+    fixedColumns: 2
+    fixedColumnSpacing: 150
   currentState: 0
-  cardSpacing: 100
-  columnSpacing: 150
-  maxColumns: 5
-  boardWidthUsage: 0.9
-  boardHeightUsage: 0.9
+  cardSpacing: 20
+  boardWidthUsage: 0.881
+  boardHeightUsage: 0.872
+  horizontalSpacing: 100
+  verticalSpacing: 150
+  maxCardsPerCircle: 12
 --- !u!1 &1210835075
 GameObject:
   m_ObjectHideFlags: 0
