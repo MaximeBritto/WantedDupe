@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: d0fe21f189be59e42891988996b90176
+guid: df1c52602bd7b0f42955de06951c5c2e
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1821325647445457279
-    second: bg_WantedDupe1_0
+      213: 913278236245225271
+    second: button_restart_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -96,30 +96,17 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WebGL
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: bg_WantedDupe1_0
+      name: button_restart_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 816
-        height: 1456
+        x: 7
+        y: 5
+        width: 1010
+        height: 1015
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 18684b339f959b6e0800000000000000
-      internalID: -1821325647445457279
+      spriteID: 73fed7497bd9cac00800000000000000
+      internalID: 913278236245225271
       vertices: []
       indices: 
       edges: []
@@ -147,8 +134,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      bg_WantedDupe1_0: -1821325647445457279
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
