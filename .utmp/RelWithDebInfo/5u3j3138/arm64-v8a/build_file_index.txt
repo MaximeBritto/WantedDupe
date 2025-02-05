@@ -1,0 +1,3 @@
+C:\Users\maxim\OneDrive\Documents\taff\WantedDupe\WantedDupe\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\maxim\OneDrive\Documents\taff\WantedDupe\WantedDupe\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\FramePacing\CMakeLists.txt
+C:\Users\maxim\OneDrive\Documents\taff\WantedDupe\WantedDupe\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using System.Linq;
 
 public class GridManager : MonoBehaviour
 {
@@ -17,9 +18,9 @@ public class GridManager : MonoBehaviour
     public RectTransform gridContainer;
 
     [Header("Roulette Settings")]
-    public float rouletteDuration = 2f;
+    public float rouletteDuration = 2f;         // Durée de l'effet roulette avant d'afficher les cartes
     public float highlightDelay = 0.1f;
-    public float delayAfterSuccess = 1f;
+    public float delayAfterSuccess = 1f;          // Délai après un succès
 
     [Header("Mobile Settings")]
     public float mobileCardScale = 0.8f;
@@ -65,6 +66,9 @@ public class GridManager : MonoBehaviour
         [Header("Column Specific Settings (Only used if state is Columns or ColumnsMoving)")]
         public int fixedColumns = 2;
         public float fixedColumnSpacing = 150f;
+
+        [Header("Only One Color")]
+        public bool onlyOneColor;
     }
 
     [Header("Difficulty Settings")]
@@ -90,33 +94,28 @@ public class GridManager : MonoBehaviour
 
     /// <summary>
     /// Liste de tous les Tweens actifs (Tweener ou Sequence).
-    /// On les arrête tous quand on change d'état.
     /// </summary>
     private List<Tween> activeTweens = new List<Tween>();
 
     private void Start()
     {
-        // Exemple : On écoute des events du GameManager (adapté à votre code)
+        // Écoute des événements du GameManager
         GameManager.Instance.onGameStart.AddListener(InitializeGrid);
         GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
 
         if (difficultyLevels == null || difficultyLevels.Length == 0)
         {
-            Debug.LogError("Aucun niveau de difficulté configuré!");
+            Debug.LogError("Aucun niveau de difficulté configuré !");
         }
-
         if (gridContainer == null)
         {
-            Debug.LogError("GridContainer non assigné!");
+            Debug.LogError("GridContainer non assigné !");
         }
-
-        // Récupération des dimensions du board si besoin
         if (gameBoardRect != null)
         {
             boardWidth = gameBoardRect.rect.width;
             boardHeight = gameBoardRect.rect.height;
         }
-
         if (useGameBoardSize && gameBoardRect != null)
         {
             playAreaWidth = gameBoardRect.rect.width;
@@ -125,7 +124,7 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Ajuste certains paramètres si on est sur mobile (taille d'écran, etc.).
+    /// Ajuste certains paramètres pour les plateformes mobiles.
     /// </summary>
     private void AdjustForMobileIfNeeded()
     {
@@ -134,7 +133,6 @@ public class GridManager : MonoBehaviour
             playAreaWidth = Screen.width * 0.9f;
             playAreaHeight = Screen.height * 0.6f;
             cardSpacing = mobileSpacing;
-
             foreach (var card in cards)
             {
                 if (card != null)
@@ -146,26 +144,22 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Retourne une position aléatoire dans le playArea,
-    /// en vérifiant qu'elle ne soit pas trop proche d'une autre carte déjà placée.
+    /// Retourne une position aléatoire dans le playArea en évitant les chevauchements.
     /// </summary>
     private Vector2 GetValidCardPosition()
     {
         int maxAttempts = 50;
         int attempts = 0;
-
         while (attempts < maxAttempts)
         {
             Vector2 position = new Vector2(
                 Random.Range(-playAreaWidth / 2, playAreaWidth / 2),
                 Random.Range(-playAreaHeight / 2, playAreaHeight / 2)
             );
-
             bool isValidPosition = true;
             foreach (var card in cards)
             {
                 if (card == null) continue;
-
                 RectTransform rectTransform = card.GetComponent<RectTransform>();
                 float distance = Vector2.Distance(position, rectTransform.anchoredPosition);
                 if (distance < minCardDistance)
@@ -174,69 +168,82 @@ public class GridManager : MonoBehaviour
                     break;
                 }
             }
-
             if (isValidPosition)
                 return position;
-
             attempts++;
         }
-
-        // Par défaut, on renvoie (0,0) si pas trouvé
         return Vector2.zero;
     }
 
     /// <summary>
-    /// Initialise la grille (création des cartes, Wanted, etc.),
-    /// mais NE les affiche pas (AnimateCardsEntry n'est pas appelé ici).
+    /// Initialise la grille : création des cartes, sélection du Wanted, etc.
+    /// Dans le mode Only One Color, on détermine la couleur du Wanted et pour les cartes non‑Wanted on affecte cycliquement une expression différente (excluant celle du Wanted).
     /// </summary>
     public void InitializeGrid()
     {
         AdjustForMobileIfNeeded();
-
         UpdateDifficultyLevel();
 
         // Nettoyer les cartes existantes
         foreach (var card in cards)
         {
-            if (card != null) Destroy(card.gameObject);
+            if (card != null)
+                Destroy(card.gameObject);
         }
         cards.Clear();
 
-        // Nombre de cartes entre minCards et maxCards
         int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
 
-        // Choix du sprite Wanted
+        // Choix du sprite pour le Wanted
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
+        string wantedColor = null;
+        Sprite[] availableSprites = null;
+        if (currentLevel.onlyOneColor)
+        {
+            // Recherche dans le groupe correspondant
+            foreach (var group in GameManager.Instance.allCharacterSprites)
+            {
+                if (System.Array.Exists(group.expressions, s => s == wantedSprite))
+                {
+                    wantedColor = group.characterColor;
+                    // On retire le sprite du Wanted pour que les autres cartes aient d'autres expressions
+                    availableSprites = group.expressions.Where(s => s != wantedSprite).ToArray();
+                    break;
+                }
+            }
+        }
 
+        int nonWantedCounter = 0;
         for (int i = 0; i < numberOfCards; i++)
         {
             GameObject cardObj = Instantiate(characterCardPrefab, gridContainer);
             CharacterCard card = cardObj.GetComponent<CharacterCard>();
+            RectTransform rt = cardObj.GetComponent<RectTransform>();
+            rt.anchoredPosition = GetValidCardPosition();
 
-            // Position aléatoire
-            Vector2 position = GetValidCardPosition();
-            RectTransform rectTransform = cardObj.GetComponent<RectTransform>();
-            rectTransform.anchoredPosition = position;
-
-            // Sprite
             if (i == 0)
             {
-                // Première carte = Wanted
+                // La première carte est le Wanted
                 card.Initialize("Wanted", wantedSprite);
                 wantedCard = card;
             }
+            else if (currentLevel.onlyOneColor && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
+            {
+                // Affectation cyclique d'une expression différente pour les non‑Wanted
+                Sprite spriteToUse = availableSprites[nonWantedCounter % availableSprites.Length];
+                card.Initialize("Card_" + i, spriteToUse);
+                nonWantedCounter++;
+            }
             else
             {
-                // Choisir un sprite différent
+                // Sélection d'un sprite différent de celui du Wanted
                 Sprite randomSprite;
                 do
                 {
                     randomSprite = GameManager.Instance.GetRandomSprite();
                 } while (randomSprite == wantedSprite);
-
-                card.Initialize($"Card_{i}", randomSprite);
+                card.Initialize("Card_" + i, randomSprite);
             }
-
             cards.Add(card);
         }
 
@@ -246,118 +253,35 @@ public class GridManager : MonoBehaviour
         }
         else
         {
-            // Indiquer au GameManager la carte Wanted
+            // On conserve le Wanted tel quel
             GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+            FilterCardsByColor(wantedCard);
+            ArrangeCardsBasedOnState();
         }
 
-        // Masquer d'abord toutes les cartes
+        // Masquer initialement toutes les cartes
         foreach (var card in cards)
         {
             card.gameObject.SetActive(false);
         }
-
-        // IMPORTANT : On NE fait PAS AnimateCardsEntry() ici.
-        // => Les cartes sont créées mais restent invisibles.
-        // Vous pourrez appeler ShowCards() ou AnimateCardsEntry() plus tard,
-        // au moment où vous voulez qu'elles apparaissent.
     }
 
     /// <summary>
-    /// Montre et anime les cartes (entry scale 0->1), puis arrange selon l'état.
-    /// À appeler après la Roulette ou quand vous le jugez nécessaire.
-    /// </summary>
-    public void ShowCards()
-    {
-        AnimateCardsEntry();
-    }
-
-    /// <summary>
-    /// Méthode appelée quand on veut re-créer un Wanted (après un succès, par exemple).
-    /// </summary>
-    public void CreateNewWanted()
-    {
-        UpdateDifficultyOnScoreChange();
-        StartCoroutine(RouletteEffect());
-    }
-
-    /// <summary>
-    /// Effet "roulette" pour choisir un nouveau Wanted.
-    /// </summary>
-    private IEnumerator RouletteEffect()
-    {
-        yield return new WaitForSeconds(delayAfterSuccess);
-
-        Sprite newWantedSprite = GameManager.Instance.GetRandomSprite();
-
-        int newWantedIndex = Random.Range(0, cards.Count);
-        wantedCard = cards[newWantedIndex];
-        wantedCard.Initialize("Wanted", newWantedSprite);
-
-        for (int i = 0; i < cards.Count; i++)
-        {
-            if (i != newWantedIndex)
-            {
-                Sprite randomSprite;
-                do
-                {
-                    randomSprite = GameManager.Instance.GetRandomSprite();
-                } while (randomSprite == newWantedSprite);
-
-                cards[i].Initialize($"Card_{i}", randomSprite);
-            }
-        }
-
-        GameManager.Instance.SelectNewWantedCharacter(wantedCard);
-
-        // Exemple : on pourrait décider de montrer les cartes
-        // juste après la roulette, si besoin :
-        // ShowCards();
-    }
-
-    /// <summary>
-    /// Lance un mouvement aléatoire continu pour la carte spécifiée.
-    /// </summary>
-    private void StartContinuousCardMovement(CharacterCard card, float speed)
-    {
-        RectTransform rectTransform = card.GetComponent<RectTransform>();
-        rectTransform.DOKill(); // Stoppe d'éventuels tweens en cours sur cette carte
-
-        void StartNewMovement()
-        {
-            Vector2 targetPos = GetValidCardPosition();
-            float distance = Vector2.Distance(rectTransform.anchoredPosition, targetPos);
-            float adjustedDuration = distance / (speed * 100f);
-
-            rectTransform.DOAnchorPos(targetPos, adjustedDuration)
-                .SetEase(Ease.InOutQuad)
-                .OnComplete(StartNewMovement);
-        }
-
-        StartNewMovement();
-    }
-
-    /// <summary>
-    /// Anime l'entrée (scale 0 -> 1) de toutes les cartes.
-    /// On attend que TOUTES les cartes aient fini avant d'appeler ArrangeCardsBasedOnState().
+    /// Anime l'entrée (scale 0 -> 1) de toutes les cartes et, à la fin, les arrange.
     /// </summary>
     public void AnimateCardsEntry()
     {
         int cardsCompleted = 0;
-
         foreach (var card in cards)
         {
             if (card == null) continue;
-
             card.gameObject.SetActive(true);
             card.transform.localScale = Vector3.zero;
-
-            // Tween d'apparition
             card.transform.DOScale(Vector3.one, 0.3f)
                 .SetEase(Ease.OutBack)
-                .OnComplete(() => {
+                .OnComplete(() =>
+                {
                     cardsCompleted++;
-                    // Lorsque toutes les cartes ont fini leur tween d'entrée,
-                    // on exécute ArrangeCardsBasedOnState() pour éviter tout conflit de scale
                     if (cardsCompleted >= cards.Count)
                     {
                         ArrangeCardsBasedOnState();
@@ -367,8 +291,73 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Met à jour le niveau de difficulté en fonction du score
-    /// et sélectionne un nouvel état (au hasard parmi ceux autorisés).
+    /// Crée un nouveau Wanted après un succès.
+    /// </summary>
+    public void CreateNewWanted()
+    {
+        UpdateDifficultyOnScoreChange();
+        StartCoroutine(RouletteEffect());
+    }
+
+    /// <summary>
+    /// Coroutine de l'effet roulette pour choisir un nouveau Wanted.
+    /// En mode Only One Color, le nouveau Wanted reçoit un sprite et les autres cartes reçoivent cycliquement une expression différente (excluant celle du Wanted).
+    /// </summary>
+    private IEnumerator RouletteEffect()
+    {
+        yield return new WaitForSeconds(delayAfterSuccess);
+
+        Sprite newWantedSprite = GameManager.Instance.GetRandomSprite();
+        int newWantedIndex = Random.Range(0, cards.Count);
+
+        string wantedColor = null;
+        Sprite[] availableSprites = null;
+        if (currentLevel.onlyOneColor)
+        {
+            foreach (var group in GameManager.Instance.allCharacterSprites)
+            {
+                if (System.Array.Exists(group.expressions, s => s == newWantedSprite))
+                {
+                    wantedColor = group.characterColor;
+                    availableSprites = group.expressions.Where(s => s != newWantedSprite).ToArray();
+                    break;
+                }
+            }
+        }
+
+        // Mise à jour de la carte Wanted
+        wantedCard = cards[newWantedIndex];
+        wantedCard.Initialize("Wanted", newWantedSprite);
+
+        int nonWantedCounter = 0;
+        for (int i = 0; i < cards.Count; i++)
+        {
+            if (i != newWantedIndex)
+            {
+                if (currentLevel.onlyOneColor && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
+                {
+                    Sprite spriteToUse = availableSprites[nonWantedCounter % availableSprites.Length];
+                    cards[i].Initialize("Card_" + i, spriteToUse);
+                    nonWantedCounter++;
+                }
+                else
+                {
+                    Sprite randomSprite;
+                    do
+                    {
+                        randomSprite = GameManager.Instance.GetRandomSprite();
+                    } while (randomSprite == newWantedSprite);
+                    cards[i].Initialize("Card_" + i, randomSprite);
+                }
+            }
+        }
+
+        GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+        yield return new WaitForSeconds(delayAfterSuccess);
+    }
+
+    /// <summary>
+    /// Met à jour le niveau de difficulté et sélectionne un état d'agencement.
     /// </summary>
     private void UpdateDifficultyLevel()
     {
@@ -383,13 +372,11 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Selon l'état sélectionné (currentState), on arrange ou on anime les cartes différemment.
+    /// Arrange ou anime les cartes selon l'état sélectionné.
     /// </summary>
     private void ArrangeCardsBasedOnState()
     {
         StopAllCardMovements();
-
-        // Petit délai pour laisser le temps de "finir" l'animation d'entrée
         DOVirtual.DelayedCall(0.1f, () =>
         {
             switch (currentState)
@@ -428,7 +415,7 @@ public class GridManager : MonoBehaviour
         });
     }
 
-    #region Agencements & Mouvements classiques
+    #region Arrangements & Mouvements classiques
 
     private void ArrangeCardsInLine()
     {
@@ -448,7 +435,7 @@ public class GridManager : MonoBehaviour
             float xPos = startX + col * dynamicHorizontalSpacing;
             float yPos = startY - row * verticalSpacing;
             RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
-            Tweener tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
+            Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
                 .SetEase(Ease.OutBack);
             activeTweens.Add(tween);
         }
@@ -473,7 +460,7 @@ public class GridManager : MonoBehaviour
             {
                 RectTransform rectTransform = cards[currentCard].GetComponent<RectTransform>();
                 float yPos = startY - row * verticalSpacing;
-                Tweener tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
+                Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
                     .SetEase(Ease.OutBack);
                 activeTweens.Add(tween);
                 currentCard++;
@@ -490,12 +477,11 @@ public class GridManager : MonoBehaviour
             Vector2 randomPos = GetValidCardPosition();
             if (moving)
             {
-                // Mouvement continu
                 StartContinuousCardMovement(card, speed);
             }
             else
             {
-                Tweener tween = rectTransform.DOAnchorPos(randomPos, 0.5f)
+                Tween tween = rectTransform.DOAnchorPos(randomPos, 0.5f)
                     .SetEase(Ease.OutBack);
                 activeTweens.Add(tween);
             }
@@ -528,7 +514,6 @@ public class GridManager : MonoBehaviour
             float xPos = moveRight
                 ? startX + (col * horizontalSpacing) + rowOffset
                 : -startX - (col * horizontalSpacing) - rowOffset;
-
             rectTransform.anchoredPosition = new Vector2(xPos, yPos);
 
             float moveSpeed = 100f * currentLevel.moveSpeed;
@@ -545,7 +530,6 @@ public class GridManager : MonoBehaviour
                         x = -startX;
                     rectTransform.anchoredPosition = new Vector2(x, yPos);
                 });
-
             activeTweens.Add(sequence);
         }
     }
@@ -565,47 +549,37 @@ public class GridManager : MonoBehaviour
         float startX = -totalColumnsWidth / 2f;
 
         List<List<RectTransform>> columnsList = new List<List<RectTransform>>();
-        List<List<float>> initialYList = new List<List<float>>();
-
         int currentCard = 0;
         for (int col = 0; col < columns; col++)
         {
             columnsList.Add(new List<RectTransform>());
-            initialYList.Add(new List<float>());
-
             for (int row = 0; row < maxRows && currentCard < totalCards; row++)
             {
                 float xPos = startX + col * currentLevel.fixedColumnSpacing;
+                RectTransform rectTransform = cards[currentCard].GetComponent<RectTransform>();
                 int expectedCount = (totalCards % columns > col) ? maxRows : maxRows - 1;
                 float gap = ((float)(maxRows - expectedCount)) * verticalSpacing / 2f;
                 float initialY = highestY - gap - (row * verticalSpacing);
-
-                RectTransform rt = cards[currentCard].GetComponent<RectTransform>();
-                rt.anchoredPosition = new Vector2(xPos, initialY);
-
-                columnsList[col].Add(rt);
-                initialYList[col].Add(initialY);
-
+                rectTransform.anchoredPosition = new Vector2(xPos, initialY);
+                columnsList[col].Add(rectTransform);
                 currentCard++;
             }
         }
 
-        // Animation "descend" ou "monte" en boucle
         for (int col = 0; col < columns; col++)
         {
-            int capturedCol = col; // Capture locale pour éviter le problème de fermeture (closure)
+            int capturedCol = col;
             bool moveDown = (capturedCol % 2 == 0);
             float speed = 100f * currentLevel.moveSpeed;
-
             Sequence seq = DOTween.Sequence()
                 .SetLoops(-1)
                 .SetUpdate(true)
                 .OnUpdate(() =>
                 {
                     float offset = Time.deltaTime * speed;
-                    for (int j = 0; j < columnsList[capturedCol].Count; j++)
+                    foreach (var rectTransform in columnsList[capturedCol])
                     {
-                        Vector2 pos = columnsList[capturedCol][j].anchoredPosition;
+                        Vector2 pos = rectTransform.anchoredPosition;
                         if (moveDown)
                         {
                             pos.y -= offset;
@@ -616,10 +590,9 @@ public class GridManager : MonoBehaviour
                             pos.y += offset;
                             if (pos.y > highestY) pos.y = lowestY;
                         }
-                        columnsList[capturedCol][j].anchoredPosition = pos;
+                        rectTransform.anchoredPosition = pos;
                     }
                 });
-
             activeTweens.Add(seq);
         }
     }
@@ -627,59 +600,47 @@ public class GridManager : MonoBehaviour
     private void ArrangeCardsInCircles()
     {
         StopAllCardMovements();
-
         int totalCards = cards.Count;
         float centerX = 0;
         float centerY = 0;
-
         float cardSize = horizontalSpacing * 0.8f;
         float maxRadius = Mathf.Min(playAreaWidth, playAreaHeight) * 0.45f;
         float baseRadius = cardSize * 2;
         float radiusIncrement = cardSize * 1.5f;
-
         List<int> cardsPerCircle = new List<int>();
         int remainingCards = totalCards;
         int currentCircle = 0;
-
         while (remainingCards > 0 && baseRadius + (currentCircle * radiusIncrement) <= maxRadius)
         {
             float currentRadius = baseRadius + (currentCircle * radiusIncrement);
             float circumference = 2 * Mathf.PI * currentRadius;
-
             int maxCardsInCircle = Mathf.FloorToInt(circumference / cardSize);
             int cardsInThisCircle = Mathf.Min(maxCardsInCircle, remainingCards);
-
             cardsPerCircle.Add(cardsInThisCircle);
             remainingCards -= cardsInThisCircle;
             currentCircle++;
         }
-
         if (remainingCards > 0 && cardsPerCircle.Count > 0)
         {
             cardsPerCircle[cardsPerCircle.Count - 1] += remainingCards;
         }
-
         PlaceCardsInCircles(cardsPerCircle, baseRadius, radiusIncrement, centerX, centerY, false);
     }
 
     private void StartCircularMovement()
     {
         StopAllCardMovements();
-
         int totalCards = cards.Count;
         float centerX = 0;
         float centerY = 0;
-
         float cardSize = horizontalSpacing * 0.8f;
         float extraSpacing = 20f;
         float baseRadius = cardSize * 2 + extraSpacing;
-
         int numCircles = Mathf.CeilToInt((float)totalCards / maxCardsPerCircle);
         float maxAllowedRadius = Mathf.Min(playAreaWidth, playAreaHeight) * 0.45f;
         float radiusIncrement = (numCircles > 1)
             ? (maxAllowedRadius - baseRadius) / (numCircles - 1)
             : 0;
-
         List<int> cardsPerCircle = new List<int>();
         int remainingCards = totalCards;
         for (int i = 0; i < numCircles; i++)
@@ -688,7 +649,6 @@ public class GridManager : MonoBehaviour
             cardsPerCircle.Add(cardsInThisCircle);
             remainingCards -= cardsInThisCircle;
         }
-
         PlaceCardsInCircles(cardsPerCircle, baseRadius, radiusIncrement, centerX, centerY, true);
     }
 
@@ -696,26 +656,20 @@ public class GridManager : MonoBehaviour
         float centerX, float centerY, bool enableRotation)
     {
         int cardIndex = 0;
-
         for (int circle = 0; circle < cardsPerCircle.Count; circle++)
         {
             float radius = baseRadius + (circle * radiusIncrement);
             int cardsInCircle = cardsPerCircle[circle];
-
             for (int i = 0; i < cardsInCircle; i++)
             {
                 if (cardIndex >= cards.Count) break;
-
                 float angle = (i * 2 * Mathf.PI) / cardsInCircle;
                 float xPos = centerX + radius * Mathf.Cos(angle);
                 float yPos = centerY + radius * Mathf.Sin(angle);
-
                 RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
-                Tweener moveTween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
+                Tween moveTween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
                     .SetEase(Ease.OutBack);
-
                 activeTweens.Add(moveTween);
-
                 if (enableRotation)
                 {
                     float rotationSpeed = 100f * currentLevel.moveSpeed * (circle % 2 == 0 ? 1 : -1);
@@ -729,52 +683,50 @@ public class GridManager : MonoBehaviour
                             float newY = centerY + radius * Mathf.Sin(angle);
                             rectTransform.anchoredPosition = new Vector2(newX, newY);
                         });
-
                     activeTweens.Add(seq);
                 }
-
                 cardIndex++;
             }
         }
     }
 
-    #endregion
-
-    /// <summary>
-    /// État PulsingMoving : toutes les cartes bougent aléatoirement, sauf que
-    /// toutes sauf la Wanted ont un scale aléatoire + durée aléatoire + décalage aléatoire.
-    /// </summary>
     private void StartPulsingMovement()
     {
         StopAllCardMovements();
-
         foreach (var card in cards)
         {
-            // Mouvement aléatoire continu
             StartContinuousCardMovement(card, currentLevel.moveSpeed);
-
-            // Effet pulsation pour toutes les cartes sauf la Wanted
             if (card != wantedCard)
             {
                 card.transform.localScale = Vector3.one;
-
                 float randomTargetScale = Random.Range(0.8f, 3f);
                 float randomDuration = Random.Range(0.5f, 1.5f);
                 float randomDelay = Random.Range(0f, 1f);
-
-                Tweener pulseTween = card.transform.DOScale(randomTargetScale, randomDuration)
+                Tween pulseTween = card.transform.DOScale(randomTargetScale, randomDuration)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine)
                     .SetDelay(randomDelay);
-
                 activeTweens.Add(pulseTween);
             }
         }
     }
 
-    /// <summary>
-    /// Stoppe tous les tweens en cours, pour ré-initialiser avant un nouvel arrangement.
-    /// </summary>
+    private void StartContinuousCardMovement(CharacterCard card, float speed)
+    {
+        RectTransform rectTransform = card.GetComponent<RectTransform>();
+        rectTransform.DOKill();
+        void StartNewMovement()
+        {
+            Vector2 targetPos = GetValidCardPosition();
+            float distance = Vector2.Distance(rectTransform.anchoredPosition, targetPos);
+            float adjustedDuration = distance / (speed * 100f);
+            rectTransform.DOAnchorPos(targetPos, adjustedDuration)
+                .SetEase(Ease.InOutQuad)
+                .OnComplete(StartNewMovement);
+        }
+        StartNewMovement();
+    }
+
     public void StopAllCardMovements()
     {
         foreach (var tween in activeTweens)
@@ -782,7 +734,6 @@ public class GridManager : MonoBehaviour
             tween?.Kill();
         }
         activeTweens.Clear();
-
         foreach (var card in cards)
         {
             if (card != null)
@@ -794,18 +745,15 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Désactive toutes les cartes sauf la Wanted (pratique pour fin de partie, manche ratée, etc.).
+    /// Désactive toutes les cartes sauf le Wanted.
     /// </summary>
     public void HideAllButWanted()
     {
-        // Arrête d'abord tous les tweens afin que les callbacks n'interfèrent pas
         StopAllCardMovements();
-
         foreach (var card in cards)
         {
             if (card == null) continue;
             if (card == wantedCard) continue;
-
             card.gameObject.SetActive(false);
         }
     }
@@ -819,6 +767,69 @@ public class GridManager : MonoBehaviour
     {
         UpdateDifficultyLevel();
         ArrangeCardsBasedOnState();
-        // UIManager.Instance.UpdateDifficultyText(currentLevel.scoreThreshold, currentState);
+        FilterCardsByColor(wantedCard);
     }
+
+    private void FilterCardsByColor(CharacterCard wantedCard)
+    {
+        if (currentLevel.onlyOneColor && wantedCard != null)
+        {
+            // Comparaison de la couleur moyenne du Wanted avec celle de chaque carte
+            Texture2D texture = wantedCard.characterSprite.texture;
+            Color wantedColor = GetAverageColor(texture);
+            foreach (var card in cards)
+            {
+                Color cardColor = GetAverageColor(card.characterSprite.texture);
+                float colorDifference = GetColorDifference(wantedColor, cardColor);
+                // Seuil ajustable : ici, seule la carte avec une différence faible reste visible
+                card.gameObject.SetActive(colorDifference < 0.3f);
+            }
+        }
+        else
+        {
+            foreach (var card in cards)
+            {
+                card.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    // Correction : Méthode GetAverageColor protégée par try/catch pour éviter les erreurs si la texture n'est pas lisible
+    private Color GetAverageColor(Texture2D texture)
+    {
+        if (texture == null)
+        {
+            Debug.LogWarning("GetAverageColor : La texture est null.");
+            return Color.white;
+        }
+        try
+        {
+            Color32[] pixels = texture.GetPixels32();
+            int totalR = 0, totalG = 0, totalB = 0;
+            foreach (Color32 pixel in pixels)
+            {
+                totalR += pixel.r;
+                totalG += pixel.g;
+                totalB += pixel.b;
+            }
+            int pixelCount = pixels.Length;
+            return new Color(totalR / (255f * pixelCount),
+                             totalG / (255f * pixelCount),
+                             totalB / (255f * pixelCount));
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError("Erreur dans GetAverageColor sur la texture '" + texture.name +
+                           "'. Assurez-vous que 'Read/Write Enabled' est activé. " + ex.Message);
+            return Color.white;
+        }
+    }
+
+    private float GetColorDifference(Color c1, Color c2)
+    {
+        return Mathf.Abs(c1.r - c2.r) +
+               Mathf.Abs(c1.g - c2.g) +
+               Mathf.Abs(c1.b - c2.b);
+    }
+    #endregion
 }
