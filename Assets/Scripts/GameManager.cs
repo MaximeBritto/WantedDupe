@@ -52,6 +52,11 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        // Jouer le son du bouton
+        AudioManager.Instance?.PlayButtonSound();
+        // Démarrer la musique de fond
+        AudioManager.Instance?.StartBackgroundMusic();
+        
         currentScore = 0f;
         timeRemaining = roundDuration;
         isGameActive = true;
@@ -65,9 +70,12 @@ public class GameManager : MonoBehaviour
         while (isGameActive)
         {
             yield return new WaitForSeconds(0.1f);
-            if (!isPaused)  // Ne décrémenter que si le jeu n'est pas en pause
+            if (!isPaused)
             {
                 timeRemaining -= 0.1f;
+                // Mettre à jour la vitesse de la musique
+                AudioManager.Instance?.UpdateMusicSpeed(timeRemaining);
+                
                 if (timeRemaining <= 0)
                 {
                     GameOver();
@@ -80,7 +88,9 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         isGameActive = false;
-
+        // Arrêter la musique
+        AudioManager.Instance?.StopBackgroundMusic();
+        
         // Révéler la position du wanted en faisant disparaître les autres cartes
         StartCoroutine(RevealWantedPosition());
     }
@@ -127,6 +137,9 @@ public class GameManager : MonoBehaviour
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
+        // Jouer le son de sélection
+        AudioManager.Instance?.PlayWantedSelection();
+        
         wantedCharacter = character;
         onNewWantedCharacter.Invoke(character);
     }
