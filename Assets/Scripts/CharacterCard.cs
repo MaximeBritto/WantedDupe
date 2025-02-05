@@ -79,7 +79,7 @@ public class CharacterCard : MonoBehaviour
         {
             cardAnimation.PlayWrongAnimation();
             AudioManager.Instance.PlayWrong();
-            GameManager.Instance.GameOver();
+            GameManager.Instance.ApplyTimePenalty();
         }
     }
 

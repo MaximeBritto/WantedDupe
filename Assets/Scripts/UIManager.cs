@@ -16,8 +16,8 @@ public class UIManager : MonoBehaviour
 
     [Header("Wanted Panel")]
     public Image wantedCharacterImage;
-    public TextMeshProUGUI wantedText;
     public RectTransform wantedPanel;
+    public RectTransform wantedImageRect;
     
     [Header("Game Info")]
     public TextMeshProUGUI scoreText;
@@ -41,6 +41,7 @@ public class UIManager : MonoBehaviour
     public Vector2 rouletteWantedSize = new Vector2(500, 600);  // Taille pendant la roulette
     public Vector2 roulettePosition = new Vector2(0, 0);        // Position pendant la roulette
     public float rouletteScale = 1.2f;                          // Échelle pendant la roulette
+    public float wantedImageScale = 0.6f;                       // Facteur de proportion de l'image
     public bool isRouletteRunning = false;
 
     [Header("Game Board")]
@@ -152,7 +153,13 @@ public class UIManager : MonoBehaviour
         // Désactiver temporairement la grille
         gridCanvas.gameObject.SetActive(false);
         
-        // Animation de descente et agrandissement
+        // S'assurer d'avoir un sprite initial
+        if (wantedCharacterImage.sprite == null)
+        {
+            wantedCharacterImage.sprite = GameManager.Instance.GetRandomSprite();
+        }
+        
+        // Animation de descente initiale (sans changer la taille de l'image)
         Sequence startSequence = DOTween.Sequence();
         startSequence.Join(wantedPanel.DOAnchorPos(roulettePosition, 0.5f))
                     .Join(wantedPanel.DOSizeDelta(rouletteWantedSize, 0.5f))
@@ -166,6 +173,13 @@ public class UIManager : MonoBehaviour
         {
             Sprite randomSprite = GameManager.Instance.GetRandomSprite();
             wantedCharacterImage.sprite = randomSprite;
+            
+            // Ajuster la taille de l'image après avoir assigné le sprite
+            float imageRatio = randomSprite.rect.width / randomSprite.rect.height;
+            float rouletteHeight = rouletteWantedSize.y * wantedImageScale;
+            float rouletteWidth = rouletteHeight * imageRatio;
+            wantedImageRect.sizeDelta = new Vector2(rouletteWidth, rouletteHeight);
+            
             yield return new WaitForSeconds(changeImageDelay);
             elapsedTime += changeImageDelay;
         }
@@ -181,27 +195,32 @@ public class UIManager : MonoBehaviour
 
         // Afficher le sprite final
         wantedCharacterImage.sprite = finalCharacter.characterSprite;
-        wantedText.text = "WANTED!";
         AudioManager.Instance.PlayCorrect();
 
         yield return new WaitForSeconds(0.5f);
+
+        // Calculer la taille finale de l'image
+        float finalImageRatio = finalCharacter.characterSprite.rect.width / finalCharacter.characterSprite.rect.height;
+        float finalHeight = finalWantedSize.y * wantedImageScale;
+        float finalWidth = finalHeight * finalImageRatio;
+        Vector2 finalImageSize = new Vector2(finalWidth, finalHeight);
 
         // Animation de remontée et rétrécissement
         Sequence endSequence = DOTween.Sequence();
         endSequence.Join(wantedPanel.DOAnchorPos(finalWantedPosition, 0.5f))
                   .Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
-                  .Join(wantedPanel.transform.DOScale(1f, 0.5f));
+                  .Join(wantedPanel.transform.DOScale(1f, 0.5f))
+                  .Join(wantedImageRect.DOSizeDelta(finalImageSize, 0.5f));
 
         yield return endSequence.WaitForCompletion();
 
         // Réactiver la grille et les cartes
         gridCanvas.gameObject.SetActive(true);
         
-        // Réactiver et animer les cartes
         var gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
-            gridManager.AnimateCardsEntry();  // Cette méthode réactive et anime les cartes
+            gridManager.AnimateCardsEntry();
         }
 
         GameManager.Instance.ResumeGame();
@@ -213,12 +232,20 @@ public class UIManager : MonoBehaviour
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
 
-        // Réinitialiser le WantedPanel à sa taille normale
+        // Réinitialiser le WantedPanel et l'image à leur taille normale
         if (wantedPanel != null)
         {
             wantedPanel.transform.localScale = Vector3.one;
             wantedPanel.sizeDelta = finalWantedSize;
             wantedPanel.anchoredPosition = finalWantedPosition;
+            
+            if (wantedImageRect != null && wantedCharacterImage.sprite != null)
+            {
+                float imageRatio = wantedCharacterImage.sprite.rect.width / wantedCharacterImage.sprite.rect.height;
+                float height = finalWantedSize.y * wantedImageScale;
+                float width = height * imageRatio;
+                wantedImageRect.sizeDelta = new Vector2(width, height);
+            }
         }
     }
 
@@ -265,6 +292,5 @@ public class UIManager : MonoBehaviour
         // Ajuster la taille des textes
         if (scoreText != null) scoreText.fontSize = 40;
         if (timerText != null) timerText.fontSize = 40;
-        if (wantedText != null) wantedText.fontSize = 36;
     }
 } 

@@ -307,53 +307,28 @@ public class GridManager : MonoBehaviour
     {
         yield return new WaitForSeconds(delayAfterSuccess);
 
-        Sprite newWantedSprite = GameManager.Instance.GetRandomSprite();
-        int newWantedIndex = Random.Range(0, cards.Count);
+        // Sauvegarder l'ancien wanted pour la transition
+        CharacterCard oldWanted = wantedCard;
+        
+        // Réinitialiser la grille avec le nouveau nombre de cartes selon le niveau actuel
+        InitializeGrid();
 
-        string wantedColor = null;
-        Sprite[] availableSprites = null;
-        if (currentLevel.onlyOneColor)
+        // Trouver le nouveau wanted dans la nouvelle grille
+        wantedCard = cards.FirstOrDefault(c => c.name == "Wanted");
+        
+        if (wantedCard == null)
         {
-            foreach (var group in GameManager.Instance.allCharacterSprites)
-            {
-                if (System.Array.Exists(group.expressions, s => s == newWantedSprite))
-                {
-                    wantedColor = group.characterColor;
-                    availableSprites = group.expressions.Where(s => s != newWantedSprite).ToArray();
-                    break;
-                }
-            }
+            Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
+            yield break;
         }
 
-        // Mise à jour de la carte Wanted
-        wantedCard = cards[newWantedIndex];
-        wantedCard.Initialize("Wanted", newWantedSprite);
-
-        int nonWantedCounter = 0;
-        for (int i = 0; i < cards.Count; i++)
-        {
-            if (i != newWantedIndex)
-            {
-                if (currentLevel.onlyOneColor && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
-                {
-                    Sprite spriteToUse = availableSprites[nonWantedCounter % availableSprites.Length];
-                    cards[i].Initialize("Card_" + i, spriteToUse);
-                    nonWantedCounter++;
-                }
-                else
-                {
-                    Sprite randomSprite;
-                    do
-                    {
-                        randomSprite = GameManager.Instance.GetRandomSprite();
-                    } while (randomSprite == newWantedSprite);
-                    cards[i].Initialize("Card_" + i, randomSprite);
-                }
-            }
-        }
-
+        // Mise à jour du GameManager avec le nouveau wanted
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+        
         yield return new WaitForSeconds(delayAfterSuccess);
+        
+        // Reprendre le jeu après la roulette
+        GameManager.Instance.ResumeGame();
     }
 
     /// <summary>
@@ -362,13 +337,27 @@ public class GridManager : MonoBehaviour
     private void UpdateDifficultyLevel()
     {
         float currentScore = GameManager.Instance.currentScore;
-        currentLevel = difficultyLevels[0];
-        foreach (var level in difficultyLevels)
+        
+        // Trouver le niveau de difficulté approprié
+        DifficultyLevel newLevel = difficultyLevels[0];
+        for (int i = difficultyLevels.Length - 1; i >= 0; i--)
         {
-            if (currentScore >= level.scoreThreshold)
-                currentLevel = level;
+            if (currentScore >= difficultyLevels[i].scoreThreshold)
+            {
+                newLevel = difficultyLevels[i];
+                break;
+            }
         }
+
+        // Mettre à jour le niveau et l'état
+        currentLevel = newLevel;
         currentState = currentLevel.possibleStates[Random.Range(0, currentLevel.possibleStates.Length)];
+
+        // Mettre à jour l'affichage UI du niveau si nécessaire
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.UpdateDifficultyText(currentLevel.scoreThreshold, currentState);
+        }
     }
 
     /// <summary>
@@ -377,6 +366,9 @@ public class GridManager : MonoBehaviour
     private void ArrangeCardsBasedOnState()
     {
         StopAllCardMovements();
+        // Mélanger les cartes avant de les arranger
+        ShuffleCards();
+        
         DOVirtual.DelayedCall(0.1f, () =>
         {
             switch (currentState)
@@ -774,19 +766,24 @@ public class GridManager : MonoBehaviour
     {
         if (currentLevel.onlyOneColor && wantedCard != null)
         {
-            // Comparaison de la couleur moyenne du Wanted avec celle de chaque carte
-            Texture2D texture = wantedCard.characterSprite.texture;
-            Color wantedColor = GetAverageColor(texture);
-            foreach (var card in cards)
+            // Mode One Color : on filtre par couleur
+            foreach (var group in GameManager.Instance.allCharacterSprites)
             {
-                Color cardColor = GetAverageColor(card.characterSprite.texture);
-                float colorDifference = GetColorDifference(wantedColor, cardColor);
-                // Seuil ajustable : ici, seule la carte avec une différence faible reste visible
-                card.gameObject.SetActive(colorDifference < 0.3f);
+                if (System.Array.Exists(group.expressions, s => s == wantedCard.characterSprite))
+                {
+                    // On active seulement les cartes de la même couleur
+                    foreach (var card in cards)
+                    {
+                        bool sameColor = System.Array.Exists(group.expressions, s => s == card.characterSprite);
+                        card.gameObject.SetActive(sameColor);
+                    }
+                    break;
+                }
             }
         }
         else
         {
+            // Mode normal : on active toutes les cartes
             foreach (var card in cards)
             {
                 card.gameObject.SetActive(true);
@@ -830,6 +827,18 @@ public class GridManager : MonoBehaviour
         return Mathf.Abs(c1.r - c2.r) +
                Mathf.Abs(c1.g - c2.g) +
                Mathf.Abs(c1.b - c2.b);
+    }
+
+    private void ShuffleCards()
+    {
+        // Mélanger la liste des cartes
+        for (int i = cards.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            var temp = cards[i];
+            cards[i] = cards[randomIndex];
+            cards[randomIndex] = temp;
+        }
     }
     #endregion
 }

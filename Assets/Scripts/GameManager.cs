@@ -34,6 +34,10 @@ public class GameManager : MonoBehaviour
     public UnityEvent<CharacterCard> onNewWantedCharacter = new UnityEvent<CharacterCard>();
     public UnityEvent<float> onScoreChanged = new UnityEvent<float>();
 
+    [Header("Timer Settings")]
+    public float maxTime = 40f;       // Temps maximum possible
+    public float penaltyTime = 5f;    // Temps retiré pour une mauvaise carte
+
     private System.Random random;
     private bool isPaused = false;
 
@@ -147,26 +151,26 @@ public class GameManager : MonoBehaviour
     public void AddScore()
     {
         currentScore += scorePerCorrectClick;
-        onScoreChanged.Invoke(currentScore);  // Déclencher l'événement
+        onScoreChanged.Invoke(currentScore);
         
-        // Ajouter des logs pour déboguer
-        Debug.Log($"Bonne carte trouvée ! Score: {currentScore}");
-        Debug.Log($"Temps avant bonus: {timeRemaining}");
-        
-        // Ajouter 5 secondes
-        timeRemaining = Mathf.Min(timeRemaining + 5f, roundDuration);
-        Debug.Log($"Temps après bonus: {timeRemaining}");
+        // Ajouter 5 secondes, mais permettre de dépasser le temps initial
+        timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
         
         // Créer un nouveau wanted
         var gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
+            PauseGame(); // Pause pendant la roulette
             gridManager.CreateNewWanted();
-            Debug.Log("Nouveau Wanted créé");
         }
-        else
+    }
+
+    public void ApplyTimePenalty()
+    {
+        timeRemaining = Mathf.Max(0f, timeRemaining - penaltyTime);
+        if (timeRemaining <= 0)
         {
-            Debug.LogError("GridManager non trouvé!");
+            GameOver();
         }
     }
 

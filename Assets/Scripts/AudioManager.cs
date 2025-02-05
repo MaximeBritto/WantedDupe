@@ -20,9 +20,13 @@ public class AudioManager : MonoBehaviour
     [Range(1f, 2f)]
     public float maxPitch = 1.5f;  // Pitch maximum quand le temps est proche de 0
     
+    [Header("Timer Sound")]
+    public AudioClip timerTickSound;  // Son pour chaque seconde qui passe
+    
     private AudioSource audioSource;        // Pour les effets sonores
     private AudioSource musicSource;        // Pour la musique de fond
     private AudioSource wantedSelectionSource; // Nouvel AudioSource dédié au son de sélection
+    private float lastTickTime;       // Pour suivre la dernière fois qu'on a joué le son
     
     private void Awake()
     {
@@ -83,13 +87,21 @@ public class AudioManager : MonoBehaviour
     {
         if (musicSource)
         {
+            // Gestion du son du timer
+            float currentTime = Mathf.Floor(timeRemaining);
+            if (currentTime != lastTickTime && timerTickSound != null)
+            {
+                PlaySound(timerTickSound);
+                lastTickTime = currentTime;
+            }
+
+            // Logique existante pour le pitch de la musique
             if (timeRemaining > 20f)
             {
                 musicSource.pitch = 1f;
             }
             else
             {
-                // Calcul du pitch entre 1 et maxPitch basé sur le temps restant
                 float pitchFactor = 1f - (timeRemaining / 20f);
                 musicSource.pitch = Mathf.Lerp(1f, maxPitch, pitchFactor);
             }
