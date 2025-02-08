@@ -55,11 +55,13 @@ public class UIManager : MonoBehaviour
     public Vector2 mobileWantedPosition = new Vector2(0, 800);  // Position du wanted en mode portrait
 
     [Header("Safe Area")]
-    public RectTransform safeAreaRect;
+    public GameObject SafeArea;  // Changé pour GameObject et avec une majuscule
 
     [Header("Difficulty Display")]
     public TextMeshProUGUI difficultyText;      // Pour afficher le niveau
     public TextMeshProUGUI currentStateText;     // Pour afficher l'état actuel
+
+    public ComboSlider comboSlider;
 
     private void Awake()
     {
@@ -88,6 +90,7 @@ public class UIManager : MonoBehaviour
         GameManager.Instance.onGameStart.AddListener(OnGameStart);
         GameManager.Instance.onGameOver.AddListener(OnGameOver);
         GameManager.Instance.onNewWantedCharacter.AddListener(UpdateWantedCharacter);
+        GameManager.Instance.onScoreChanged.AddListener(UpdateScoreText);
         
         menuPanel.SetActive(true);
         gameOverPanel.SetActive(false);
@@ -110,6 +113,16 @@ public class UIManager : MonoBehaviour
             // Configurer pour le format portrait
             ConfigureForPortrait();
         }
+
+        // Cacher le SafeArea et l'UI Canvas au démarrage
+        if (SafeArea != null)
+        {
+            SafeArea.SetActive(false);
+        }
+        if (uiCanvas != null)
+        {
+            uiCanvas.gameObject.SetActive(false);
+        }
     }
 
     private void DisableRaycastOnPanel(RectTransform panel)
@@ -126,7 +139,8 @@ public class UIManager : MonoBehaviour
 
     private void Update()
     {
-        if (GameManager.Instance.isGameActive)
+        // Ne mettre à jour l'UI que si le jeu est actif ET que GameManager existe
+        if (GameManager.Instance != null && GameManager.Instance.isGameActive)
         {
             UpdateUI();
         }
@@ -134,8 +148,11 @@ public class UIManager : MonoBehaviour
 
     private void UpdateUI()
     {
-        scoreText.text = $"Score: {GameManager.Instance.currentScore}";
-        timerText.text = $"Temps: {Mathf.CeilToInt(GameManager.Instance.timeRemaining)}";
+        if (GameManager.Instance == null) return;
+        
+        // Pendant le jeu, n'afficher que le displayedScore
+        scoreText.text = $"{GameManager.Instance.displayedScore}";
+        timerText.text = $"{Mathf.CeilToInt(GameManager.Instance.timeRemaining)}";
     }
 
     private void UpdateWantedCharacter(CharacterCard character)
@@ -232,6 +249,16 @@ public class UIManager : MonoBehaviour
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
 
+        // Afficher le SafeArea et l'UI Canvas quand la partie commence
+        if (SafeArea != null)
+        {
+            SafeArea.SetActive(true);
+        }
+        if (uiCanvas != null)
+        {
+            uiCanvas.gameObject.SetActive(true);
+        }
+
         // Réinitialiser le WantedPanel et l'image à leur taille normale
         if (wantedPanel != null)
         {
@@ -253,7 +280,22 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(true);
-        finalScoreText.text = $"Score Final: {GameManager.Instance.currentScore}";
+
+        // Cacher le SafeArea et l'UI Canvas à la fin de la partie
+        if (SafeArea != null)
+        {
+            SafeArea.SetActive(false);
+        }
+        if (uiCanvas != null)
+        {
+            uiCanvas.gameObject.SetActive(false);
+        }
+        
+        if (GameManager.Instance != null)
+        {
+            float finalScore = GameManager.Instance.displayedScore + GameManager.Instance.currentComboCount;
+            finalScoreText.text = $"Score : {finalScore}";
+        }
     }
 
     private void StartGame()
@@ -292,5 +334,14 @@ public class UIManager : MonoBehaviour
         // Ajuster la taille des textes
         if (scoreText != null) scoreText.fontSize = 40;
         if (timerText != null) timerText.fontSize = 40;
+    }
+
+    private void UpdateScoreText(float score)
+    {
+        // Pendant le jeu, n'afficher que le displayedScore
+        if (GameManager.Instance.isGameActive)
+        {
+            scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
+        }
     }
 } 

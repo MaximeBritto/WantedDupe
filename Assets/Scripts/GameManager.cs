@@ -21,10 +21,9 @@ public class GameManager : MonoBehaviour
     [Header("Game Settings")]
     public float roundDuration = 30f;
     public int startingGridSize = 16; // 4x4 grid
-    public float scorePerCorrectClick = 100f;
+    public float scorePerCorrectClick = 1f;
     
     [Header("Game State")]
-    public float currentScore = 0f;
     public float timeRemaining;
     public CharacterCard wantedCharacter;
     public bool isGameActive = false;
@@ -37,6 +36,14 @@ public class GameManager : MonoBehaviour
     [Header("Timer Settings")]
     public float maxTime = 40f;       // Temps maximum possible
     public float penaltyTime = 5f;    // Temps retiré pour une mauvaise carte
+
+    [Header("Score Settings")]
+    public int maxComboMultiplier = 5;
+    public int currentComboCount { get; private set; } = 0;  // Accessible en lecture seule
+    public float displayedScore { get; private set; } = 0f;  // Score affiché (multiples de 5)
+    private float internalScore = 0f;  // Score réel interne (augmente de 1)
+    
+    public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
     private System.Random random;
     private bool isPaused = false;
@@ -61,7 +68,11 @@ public class GameManager : MonoBehaviour
         // Démarrer la musique de fond
         AudioManager.Instance?.StartBackgroundMusic();
         
-        currentScore = 0f;
+        internalScore = 0f;
+        displayedScore = 0f;
+        currentComboCount = 0;  // Réinitialiser le combo
+        onComboChanged.Invoke(0f);  // Réinitialiser le slider
+        
         timeRemaining = roundDuration;
         isGameActive = true;
         onGameStart.Invoke();
@@ -92,17 +103,19 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         isGameActive = false;
-        // Arrêter la musique
-        AudioManager.Instance?.StopBackgroundMusic();
         
-        // Révéler la position du wanted en faisant disparaître les autres cartes
+        // Calculer le score final en incluant les points du slider
+        float finalScore = displayedScore + currentComboCount;
+        onScoreChanged.Invoke(finalScore);
+        
+        AudioManager.Instance?.StopBackgroundMusic();
         StartCoroutine(RevealWantedPosition());
     }
 
     private IEnumerator RevealWantedPosition()
     {
         // Faire disparaître toutes les cartes sauf le wanted
-        var gridManager = FindObjectOfType<GridManager>();
+        var gridManager = Object.FindFirstObjectByType<GridManager>();
         if (gridManager != null)
         {
             foreach (var card in gridManager.cards)
@@ -150,17 +163,32 @@ public class GameManager : MonoBehaviour
 
     public void AddScore()
     {
-        currentScore += scorePerCorrectClick;
-        onScoreChanged.Invoke(currentScore);
+        // Ajouter au combo
+        currentComboCount++;
         
-        // Ajouter 5 secondes, mais permettre de dépasser le temps initial
+        // Si le combo atteint le maximum
+        if (currentComboCount >= maxComboMultiplier)
+        {
+            // Ajouter 5 points au score affiché
+            displayedScore += maxComboMultiplier;
+            // Réinitialiser le combo
+            currentComboCount = 0;
+            // Mettre à jour l'affichage du score
+            onScoreChanged.Invoke(displayedScore);
+        }
+        
+        // Toujours mettre à jour le slider
+        onComboChanged.Invoke((float)currentComboCount / maxComboMultiplier);
+        
+        // Le score réel continue d'augmenter de 1
+        internalScore += scorePerCorrectClick;
+        
+        // Ajouter du temps et créer un nouveau wanted
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
-        
-        // Créer un nouveau wanted
-        var gridManager = FindObjectOfType<GridManager>();
+        var gridManager = Object.FindFirstObjectByType<GridManager>();
         if (gridManager != null)
         {
-            PauseGame(); // Pause pendant la roulette
+            PauseGame();
             gridManager.CreateNewWanted();
         }
     }
@@ -183,7 +211,7 @@ public class GameManager : MonoBehaviour
 
     public void StartNewRound()
     {
-        if (currentScore > 500)
+        if (internalScore > 500)
         {
             roundDuration = Mathf.Max(10f, roundDuration - 2f);
         }

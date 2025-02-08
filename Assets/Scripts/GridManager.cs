@@ -336,7 +336,7 @@ public class GridManager : MonoBehaviour
     /// </summary>
     private void UpdateDifficultyLevel()
     {
-        float currentScore = GameManager.Instance.currentScore;
+        float currentScore = GameManager.Instance.displayedScore;
         
         // Trouver le niveau de difficulté approprié
         DifficultyLevel newLevel = difficultyLevels[0];
