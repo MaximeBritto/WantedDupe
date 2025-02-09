@@ -63,6 +63,11 @@ public class UIManager : MonoBehaviour
 
     public ComboSlider comboSlider;
 
+    [Header("Background")]
+    public BackgroundManager backgroundManager;
+
+    private Vector2 timerInitialPosition;
+
     private void Awake()
     {
         if (Instance == null)
@@ -123,6 +128,18 @@ public class UIManager : MonoBehaviour
         {
             uiCanvas.gameObject.SetActive(false);
         }
+
+        // S'assurer que le background est visible mais derrière les autres éléments
+        if (backgroundManager != null)
+        {
+            backgroundManager.gameObject.SetActive(true);
+        }
+
+        // Sauvegarder la position initiale du timer
+        if (timerText != null)
+        {
+            timerInitialPosition = timerText.rectTransform.anchoredPosition;
+        }
     }
 
     private void DisableRaycastOnPanel(RectTransform panel)
@@ -150,9 +167,35 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
         
-        // Pendant le jeu, n'afficher que le displayedScore
+        // Mettre à jour le score
         scoreText.text = $"{GameManager.Instance.displayedScore}";
-        timerText.text = $"{Mathf.CeilToInt(GameManager.Instance.timeRemaining)}";
+
+        // Mettre à jour le timer avec changement de couleur
+        float timeRemaining = GameManager.Instance.timeRemaining;
+        timerText.text = $"{Mathf.CeilToInt(timeRemaining)}";
+        
+        // Changer la couleur en rouge et faire trembler si <= 10 secondes
+        if (timeRemaining <= 10f)
+        {
+            timerText.color = Color.red;
+            
+            // Vérifier si une animation de tremblement est déjà en cours
+            if (!DOTween.IsTweening(timerText.transform))
+            {
+                // Créer un effet de tremblement autour de la position initiale
+                timerText.rectTransform.DOShakeAnchorPos(0.5f, 5f, 20, 90, false, true)
+                    .SetLoops(-1, LoopType.Restart)
+                    .SetId("TimerShake");
+            }
+        }
+        else
+        {
+            timerText.color = Color.white;
+            // Arrêter le tremblement si actif
+            DOTween.Kill("TimerShake");
+            // Réinitialiser la position
+            timerText.rectTransform.anchoredPosition = timerInitialPosition;
+        }
     }
 
     private void UpdateWantedCharacter(CharacterCard character)
@@ -343,5 +386,11 @@ public class UIManager : MonoBehaviour
         {
             scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
         }
+    }
+
+    // Ajouter cette méthode pour nettoyer les tweens au besoin
+    private void OnDestroy()
+    {
+        DOTween.Kill("TimerShake");
     }
 } 
