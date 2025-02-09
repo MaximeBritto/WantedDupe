@@ -2908,6 +2908,22 @@ MonoBehaviour:
     fixedColumns: 6
     fixedColumnSpacing: 150
     onlyOneColor: 0
+  - scoreThreshold: 8
+    minCards: 50
+    maxCards: 50
+    moveSpeed: 0.5
+    possibleStates: 0600000005000000
+    fixedColumns: 6
+    fixedColumnSpacing: 150
+    onlyOneColor: 1
+  - scoreThreshold: 10
+    minCards: 70
+    maxCards: 85
+    moveSpeed: 1.2
+    possibleStates: 020000000400000008000000
+    fixedColumns: 6
+    fixedColumnSpacing: 150
+    onlyOneColor: 0
   currentLevel:
     scoreThreshold: 0
     minCards: 0
