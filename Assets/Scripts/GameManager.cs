@@ -41,7 +41,7 @@ public class GameManager : MonoBehaviour
     public int maxComboMultiplier = 5;
     public int currentComboCount { get; private set; } = 0;  // Accessible en lecture seule
     public float displayedScore { get; private set; } = 0f;  // Score affiché (multiples de 5)
-    private float internalScore = 0f;  // Score réel interne (augmente de 1)
+    public float internalScore{ get; private set; } = 0f;  // Score réel interne (augmente de 1)
     
     public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
@@ -183,8 +183,10 @@ public class GameManager : MonoBehaviour
         // Le score réel continue d'augmenter de 1
         internalScore += scorePerCorrectClick;
         
-        // Ajouter du temps et créer un nouveau wanted
+        // Ajouter du temps
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
+
+        // Créer un nouveau wanted
         var gridManager = Object.FindFirstObjectByType<GridManager>();
         if (gridManager != null)
         {

@@ -2695,7 +2695,7 @@ MonoBehaviour:
     fixedColumns: 2
     fixedColumnSpacing: 150
     onlyOneColor: 0
-  - scoreThreshold: 100
+  - scoreThreshold: 1
     minCards: 16
     maxCards: 16
     moveSpeed: 1
@@ -2703,7 +2703,7 @@ MonoBehaviour:
     fixedColumns: 4
     fixedColumnSpacing: 150
     onlyOneColor: 0
-  - scoreThreshold: 200
+  - scoreThreshold: 2
     minCards: 20
     maxCards: 20
     moveSpeed: 1
@@ -2711,7 +2711,7 @@ MonoBehaviour:
     fixedColumns: 4
     fixedColumnSpacing: 150
     onlyOneColor: 0
-  - scoreThreshold: 300
+  - scoreThreshold: 3
     minCards: 28
     maxCards: 28
     moveSpeed: 0.5
@@ -2719,12 +2719,20 @@ MonoBehaviour:
     fixedColumns: 1
     fixedColumnSpacing: 150
     onlyOneColor: 0
-  - scoreThreshold: 400
+  - scoreThreshold: 4
     minCards: 28
     maxCards: 28
     moveSpeed: 0.5
     possibleStates: 010000000000000007000000
     fixedColumns: 4
+    fixedColumnSpacing: 150
+    onlyOneColor: 0
+  - scoreThreshold: 5
+    minCards: 42
+    maxCards: 42
+    moveSpeed: 0.5
+    possibleStates: 0600000005000000
+    fixedColumns: 6
     fixedColumnSpacing: 150
     onlyOneColor: 0
   currentLevel:

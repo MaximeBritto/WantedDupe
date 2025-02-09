@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class CharacterCard : MonoBehaviour
 {
@@ -61,19 +62,11 @@ public class CharacterCard : MonoBehaviour
 
         if (GameManager.Instance.wantedCharacter == this)
         {
-            // Cacher toutes les cartes immédiatement
-            var gridManager = FindObjectOfType<GridManager>();
-            if (gridManager != null)
-            {
-                foreach (var card in gridManager.cards)
-                {
-                    card.gameObject.SetActive(false);
-                }
-            }
-
-            cardAnimation.PlayCorrectAnimation();
+            // Jouer l'animation de réussite et le son
             AudioManager.Instance.PlayCorrect();
-            GameManager.Instance.AddScore();
+            
+            // Attendre un moment avant de continuer
+            StartCoroutine(HandleCorrectClick());
         }
         else
         {
@@ -81,6 +74,15 @@ public class CharacterCard : MonoBehaviour
             AudioManager.Instance.PlayWrong();
             GameManager.Instance.ApplyTimePenalty();
         }
+    }
+
+    private IEnumerator HandleCorrectClick()
+    {
+        // Attendre que l'animation de réussite se joue
+        yield return new WaitForSeconds(0.5f);
+        
+        // Ensuite ajouter le score et déclencher la séquence suivante
+        GameManager.Instance.AddScore();
     }
 
     private void OnMouseDown()
