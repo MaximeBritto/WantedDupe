@@ -2807,6 +2807,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1162212313}
   - component: {fileID: 1162212314}
+  - component: {fileID: 1162212315}
   m_Layer: 5
   m_Name: GridContainer
   m_TagString: Untagged
@@ -2862,7 +2863,7 @@ MonoBehaviour:
   - scoreThreshold: 0
     minCards: 4
     maxCards: 4
-    moveSpeed: 1.5
+    moveSpeed: 0.8
     possibleStates: 01000000
     fixedColumns: 2
     fixedColumnSpacing: 150
@@ -2906,20 +2907,12 @@ MonoBehaviour:
     possibleStates: 0600000005000000
     fixedColumns: 6
     fixedColumnSpacing: 150
-    onlyOneColor: 0
-  - scoreThreshold: 8
-    minCards: 50
-    maxCards: 50
-    moveSpeed: 0.5
-    possibleStates: 0600000005000000
-    fixedColumns: 6
-    fixedColumnSpacing: 150
     onlyOneColor: 1
   - scoreThreshold: 10
-    minCards: 70
-    maxCards: 85
+    minCards: 48
+    maxCards: 50
     moveSpeed: 1.2
-    possibleStates: 020000000400000008000000
+    possibleStates: 020000000400000009000000
     fixedColumns: 6
     fixedColumnSpacing: 150
     onlyOneColor: 0
@@ -2939,6 +2932,19 @@ MonoBehaviour:
   horizontalSpacing: 100
   verticalSpacing: 150
   maxCardsPerCircle: 12
+--- !u!114 &1162212315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1162212312}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf76f4132956ffa42ad8fd958df19bae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gridManager: {fileID: 1162212314}
 --- !u!1 &1210835075
 GameObject:
   m_ObjectHideFlags: 0

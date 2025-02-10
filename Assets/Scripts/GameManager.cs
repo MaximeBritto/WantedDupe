@@ -41,7 +41,7 @@ public class GameManager : MonoBehaviour
     public int maxComboMultiplier = 5;
     public int currentComboCount { get; private set; } = 0;  // Accessible en lecture seule
     public float displayedScore { get; private set; } = 0f;  // Score affiché (multiples de 5)
-    public float internalScore{ get; private set; } = 0f;  // Score réel interne (augmente de 1)
+    public float internalScore { get; private set; } = 0f;  // Score réel interne (augmente de 1)
     
     public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
@@ -109,10 +109,13 @@ public class GameManager : MonoBehaviour
         onScoreChanged.Invoke(finalScore);
         
         AudioManager.Instance?.StopBackgroundMusic();
-        StartCoroutine(RevealWantedPosition());
+        StartCoroutine(RevealCardsExceptWantedAndGameOver());
     }
 
-    private IEnumerator RevealWantedPosition()
+    /// <summary>
+    /// Coroutine qui fait disparaître toutes les cartes sauf celle du wanted, puis déclenche l'écran Game Over.
+    /// </summary>
+    private IEnumerator RevealCardsExceptWantedAndGameOver()
     {
         // Faire disparaître toutes les cartes sauf le wanted
         var gridManager = Object.FindFirstObjectByType<GridManager>();
@@ -120,35 +123,14 @@ public class GameManager : MonoBehaviour
         {
             foreach (var card in gridManager.cards)
             {
-                if (card != wantedCharacter)
+                if (card != null && card != wantedCharacter)
                 {
-                    // Animation de disparition
                     card.transform.DOScale(0f, 0.3f)
                         .SetEase(Ease.InBack);
                 }
-                else
-                {
-                    // Mettre en évidence le wanted
-                    card.transform.DOScale(1.2f, 0.5f)
-                        .SetEase(Ease.OutElastic);
-                    
-                    // Optionnel : faire clignoter le wanted
-                    var image = card.GetComponent<Image>();
-                    if (image != null)
-                    {
-                        DOTween.Sequence()
-                            .Append(image.DOColor(Color.yellow, 0.3f))
-                            .Append(image.DOColor(Color.white, 0.3f))
-                            .SetLoops(3);
-                    }
-                }
             }
         }
-
-        // Attendre que les animations soient terminées
-        yield return new WaitForSeconds(2f);
-
-        // Afficher le game over
+        yield return new WaitForSeconds(0.5f);
         onGameOver.Invoke();
     }
 
@@ -186,7 +168,7 @@ public class GameManager : MonoBehaviour
         // Ajouter du temps
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
 
-        // Créer un nouveau wanted
+        // Créer un nouveau wanted (les cartes disparaîtront dans le GridManager via CreateNewWanted)
         var gridManager = Object.FindFirstObjectByType<GridManager>();
         if (gridManager != null)
         {
@@ -232,4 +214,4 @@ public class GameManager : MonoBehaviour
     {
         isPaused = false;
     }
-} 
+}

@@ -35,7 +35,10 @@ public class GridManager : MonoBehaviour
     private float boardHeight;
 
     public List<CharacterCard> cards = new List<CharacterCard>();
-    private CharacterCard wantedCard;
+    public CharacterCard wantedCard { get; private set; }
+
+    // Variable qui détermine si le mode Only One Color sera actif ce round.
+    private bool onlyOneColorActive = false;
 
     /// <summary>
     /// Différents états possibles pour l'agencement et le mouvement des cartes.
@@ -177,12 +180,16 @@ public class GridManager : MonoBehaviour
 
     /// <summary>
     /// Initialise la grille : création des cartes, sélection du Wanted, etc.
-    /// Dans le mode Only One Color, on détermine la couleur du Wanted et pour les cartes non‑Wanted on affecte cycliquement une expression différente (excluant celle du Wanted).
+    /// Dans le mode Only One Color, si l'option est cochée dans l'inspecteur, on active le mode uniquement avec une chance sur 2.
+    /// Pour les cartes non‑Wanted, on affecte aléatoirement une expression différente (excluant celle du Wanted) si le mode est actif.
     /// </summary>
     public void InitializeGrid()
     {
         AdjustForMobileIfNeeded();
         UpdateDifficultyLevel();
+
+        // Déterminer aléatoirement si le mode Only One Color sera actif ce round (50 % de chances)
+        onlyOneColorActive = currentLevel.onlyOneColor && (Random.value < 0.5f);
 
         // Nettoyer les cartes existantes
         foreach (var existingCard in cards)
@@ -198,7 +205,7 @@ public class GridManager : MonoBehaviour
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
         string wantedColor = null;
         Sprite[] availableSprites = null;
-        if (currentLevel.onlyOneColor)
+        if (onlyOneColorActive)
         {
             // Recherche dans le groupe correspondant
             foreach (var group in GameManager.Instance.allCharacterSprites)
@@ -220,6 +227,8 @@ public class GridManager : MonoBehaviour
         
         // La première carte est le Wanted
         wantedCardComponent.Initialize("Wanted", wantedSprite);
+        // IMPORTANT: placer le wanted au-dessus des autres cartes pour qu'il soit toujours cliquable
+        wantedObj.transform.SetAsLastSibling();
         wantedCard = wantedCardComponent;
         cards.Add(wantedCardComponent);
 
@@ -231,9 +240,10 @@ public class GridManager : MonoBehaviour
             RectTransform rt = cardObj.GetComponent<RectTransform>();
             rt.anchoredPosition = GetValidCardPosition();
 
-            if (currentLevel.onlyOneColor && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
+            if (onlyOneColorActive && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
             {
-                Sprite spriteToUse = availableSprites[(i-1) % availableSprites.Length];
+                // Choix aléatoire parmi les sprites disponibles
+                Sprite spriteToUse = availableSprites[Random.Range(0, availableSprites.Length)];
                 cardComponent.Initialize("Card_" + i, spriteToUse);
             }
             else
@@ -300,19 +310,19 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public void CreateNewWanted()
     {
-        // D'abord faire disparaître toutes les cartes
+        // D'abord faire disparaître toutes les cartes sauf le Wanted
         StartCoroutine(HideCardsAndStartRoulette());
     }
 
     /// <summary>
-    /// Nouvelle coroutine pour gérer la séquence
+    /// Nouvelle coroutine pour gérer la séquence.
     /// </summary>
     private IEnumerator HideCardsAndStartRoulette()
     {
-        // Faire disparaître toutes les cartes avec une animation
+        // Faire disparaître toutes les cartes sauf le Wanted
         foreach (var card in cards)
         {
-            if (card != null)
+            if (card != null && card != wantedCard)
             {
                 card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
             }
@@ -327,7 +337,7 @@ public class GridManager : MonoBehaviour
 
     /// <summary>
     /// Coroutine de l'effet roulette pour choisir un nouveau Wanted.
-    /// En mode Only One Color, le nouveau Wanted reçoit un sprite et les autres cartes reçoivent cycliquement une expression différente (excluant celle du Wanted).
+    /// En mode Only One Color, le nouveau Wanted reçoit un sprite et les autres cartes reçoivent aléatoirement une expression différente (excluant celle du Wanted) si le mode est actif.
     /// </summary>
     private IEnumerator RouletteEffect()
     {
@@ -350,6 +360,9 @@ public class GridManager : MonoBehaviour
             Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
             yield break;
         }
+
+        // IMPORTANT: placer le nouveau wanted au-dessus des autres cartes
+        wantedCard.transform.SetAsLastSibling();
 
         // Mise à jour du GameManager avec le nouveau wanted
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
@@ -796,9 +809,9 @@ public class GridManager : MonoBehaviour
 
     private void FilterCardsByColor(CharacterCard wantedCard)
     {
-        if (currentLevel.onlyOneColor && wantedCard != null)
+        if (onlyOneColorActive && wantedCard != null)
         {
-            // Mode One Color : on filtre par couleur
+            // Mode Only One Color : on filtre par couleur
             foreach (var group in GameManager.Instance.allCharacterSprites)
             {
                 if (System.Array.Exists(group.expressions, s => s == wantedCard.characterSprite))
