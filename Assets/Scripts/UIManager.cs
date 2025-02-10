@@ -56,6 +56,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Safe Area")]
     public GameObject SafeArea;  // Changé pour GameObject et avec une majuscule
+    public GameObject Board;  // Changé pour GameObject et avec une majuscule
 
     [Header("Difficulty Display")]
     public TextMeshProUGUI difficultyText;      // Pour afficher le niveau
@@ -123,6 +124,7 @@ public class UIManager : MonoBehaviour
         if (SafeArea != null)
         {
             SafeArea.SetActive(false);
+            Board.SetActive(false);
         }
         if (uiCanvas != null)
         {
@@ -296,6 +298,7 @@ public class UIManager : MonoBehaviour
         if (SafeArea != null)
         {
             SafeArea.SetActive(true);
+            Board.SetActive(true);
         }
         if (uiCanvas != null)
         {
@@ -328,7 +331,9 @@ public class UIManager : MonoBehaviour
         if (SafeArea != null)
         {
             SafeArea.SetActive(false);
+            Board.SetActive(false);
         }
+
         if (uiCanvas != null)
         {
             uiCanvas.gameObject.SetActive(false);
