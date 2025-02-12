@@ -2861,12 +2861,12 @@ MonoBehaviour:
   cards: []
   difficultyLevels:
   - scoreThreshold: 0
-    minCards: 4
-    maxCards: 4
-    moveSpeed: 0.8
-    possibleStates: 01000000
-    fixedColumns: 2
-    fixedColumnSpacing: 150
+    minCards: 80
+    maxCards: 80
+    moveSpeed: 2
+    possibleStates: 0200000006000000
+    fixedColumns: 10
+    fixedColumnSpacing: 75
     onlyOneColor: 0
   - scoreThreshold: 1
     minCards: 16
@@ -2909,13 +2909,53 @@ MonoBehaviour:
     fixedColumnSpacing: 150
     onlyOneColor: 1
   - scoreThreshold: 10
-    minCards: 48
-    maxCards: 50
+    minCards: 56
+    maxCards: 56
     moveSpeed: 1.2
-    possibleStates: 020000000400000009000000
+    possibleStates: 020000000400000005000000
     fixedColumns: 6
     fixedColumnSpacing: 150
-    onlyOneColor: 0
+    onlyOneColor: 1
+  - scoreThreshold: 15
+    minCards: 45
+    maxCards: 45
+    moveSpeed: 1.2
+    possibleStates: 030000000900000007000000
+    fixedColumns: 6
+    fixedColumnSpacing: 150
+    onlyOneColor: 1
+  - scoreThreshold: 20
+    minCards: 80
+    maxCards: 80
+    moveSpeed: 2
+    possibleStates: 0200000006000000
+    fixedColumns: 10
+    fixedColumnSpacing: 85
+    onlyOneColor: 1
+  - scoreThreshold: 23
+    minCards: 56
+    maxCards: 56
+    moveSpeed: 2
+    possibleStates: 0500000002000000
+    fixedColumns: 8
+    fixedColumnSpacing: 150
+    onlyOneColor: 1
+  - scoreThreshold: 30
+    minCards: 90
+    maxCards: 90
+    moveSpeed: 2
+    possibleStates: 0400000001000000090000000600000002000000
+    fixedColumns: 12
+    fixedColumnSpacing: 70
+    onlyOneColor: 1
+  - scoreThreshold: 23
+    minCards: 56
+    maxCards: 56
+    moveSpeed: 2
+    possibleStates: 040000000100000009000000
+    fixedColumns: 8
+    fixedColumnSpacing: 150
+    onlyOneColor: 1
   currentLevel:
     scoreThreshold: 0
     minCards: 0
