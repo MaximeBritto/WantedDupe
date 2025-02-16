@@ -9,10 +9,10 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; }
 
     [Header("Canvas Orders")]
-    public Canvas mainCanvas;        // Canvas principal
-    public Canvas gridCanvas;        // Canvas pour la grille de cartes
-    public Canvas uiCanvas;          // Canvas pour l'UI (score, timer)
-    public Canvas overlayCanvas;     // Canvas pour les menus
+    public Canvas mainCanvas;
+    public Canvas gridCanvas;
+    public Canvas uiCanvas;
+    public Canvas overlayCanvas;
 
     [Header("Wanted Panel")]
     public Image wantedCharacterImage;
@@ -33,15 +33,15 @@ public class UIManager : MonoBehaviour
 
     [Header("Roulette Effect")]
     public float rouletteDuration = 2f;      // Durée totale de la roulette
-    public float changeImageDelay = 0.1f;    // Délai entre chaque changement d'image
+    public float changeImageDelay = 0.1f;      // Délai entre chaque changement d'image
 
     [Header("Wanted Panel Sizes")]
-    public Vector2 finalWantedPosition = new Vector2(0, -100);  // Position finale en haut
-    public Vector2 finalWantedSize = new Vector2(300, 400);     // Taille finale
-    public Vector2 rouletteWantedSize = new Vector2(500, 600);  // Taille pendant la roulette
-    public Vector2 roulettePosition = new Vector2(0, 0);        // Position pendant la roulette
-    public float rouletteScale = 1.2f;                          // Échelle pendant la roulette
-    public float wantedImageScale = 0.6f;                       // Facteur de proportion de l'image
+    public Vector2 finalWantedPosition = new Vector2(0, -100);
+    public Vector2 finalWantedSize = new Vector2(300, 400);
+    public Vector2 rouletteWantedSize = new Vector2(500, 600);
+    public Vector2 roulettePosition = new Vector2(0, 0);
+    public float rouletteScale = 1.2f;
+    public float wantedImageScale = 0.6f;
     public bool isRouletteRunning = false;
 
     [Header("Game Board")]
@@ -50,17 +50,17 @@ public class UIManager : MonoBehaviour
 
     [Header("Mobile Settings")]
     public bool isMobileDevice;
-    public float mobileScaleFactor = 0.7f;  // Facteur d'échelle pour mobile
-    public Vector2 mobileWantedSize = new Vector2(200, 300);    // Taille du wanted en mode portrait
-    public Vector2 mobileWantedPosition = new Vector2(0, 800);  // Position du wanted en mode portrait
+    public float mobileScaleFactor = 0.7f;
+    public Vector2 mobileWantedSize = new Vector2(200, 300);
+    public Vector2 mobileWantedPosition = new Vector2(0, 800);
 
     [Header("Safe Area")]
-    public GameObject SafeArea;  // Changé pour GameObject et avec une majuscule
-    public GameObject Board;  // Changé pour GameObject et avec une majuscule
+    public GameObject SafeArea;
+    public GameObject Board;
 
     [Header("Difficulty Display")]
-    public TextMeshProUGUI difficultyText;      // Pour afficher le niveau
-    public TextMeshProUGUI currentStateText;     // Pour afficher l'état actuel
+    public TextMeshProUGUI difficultyText;
+    public TextMeshProUGUI currentStateText;
 
     public ComboSlider comboSlider;
 
@@ -72,27 +72,20 @@ public class UIManager : MonoBehaviour
     private void Awake()
     {
         if (Instance == null)
-        {
             Instance = this;
-        }
         else
-        {
             Destroy(gameObject);
-        }
     }
 
     private void Start()
     {
-        // Configuration des ordres de Canvas
-        gridCanvas.sortingOrder = 0;        
-        uiCanvas.sortingOrder = 1;          
-        overlayCanvas.sortingOrder = 2;     
+        gridCanvas.sortingOrder = 0;
+        uiCanvas.sortingOrder = 1;
+        overlayCanvas.sortingOrder = 2;
 
-        // Désactiver les raycasts sur les panels UI
         DisableRaycastOnPanel(wantedPanel);
         DisableRaycastOnPanel(gameInfoPanel);
         
-        // Configuration des listeners
         GameManager.Instance.onGameStart.AddListener(OnGameStart);
         GameManager.Instance.onGameOver.AddListener(OnGameOver);
         GameManager.Instance.onNewWantedCharacter.AddListener(UpdateWantedCharacter);
@@ -100,27 +93,21 @@ public class UIManager : MonoBehaviour
         
         menuPanel.SetActive(true);
         gameOverPanel.SetActive(false);
-        // Le WantedPanel reste visible par défaut
         
         startButton.onClick.AddListener(StartGame);
         restartButton.onClick.AddListener(StartGame);
 
-        // Configurer le plateau de jeu
         if (gameBoardImage != null)
         {
-            gameBoardImage.color = new Color(0, 0, 0, 0.2f);  // Fond semi-transparent
+            gameBoardImage.color = new Color(0, 0, 0, 0.2f);
         }
 
-        // Détecter si on est sur mobile
         isMobileDevice = Application.isMobilePlatform;
-        
         if (isMobileDevice)
         {
-            // Configurer pour le format portrait
             ConfigureForPortrait();
         }
 
-        // Cacher le SafeArea et l'UI Canvas au démarrage
         if (SafeArea != null)
         {
             SafeArea.SetActive(false);
@@ -131,13 +118,11 @@ public class UIManager : MonoBehaviour
             uiCanvas.gameObject.SetActive(false);
         }
 
-        // S'assurer que le background est visible mais derrière les autres éléments
         if (backgroundManager != null)
         {
             backgroundManager.gameObject.SetActive(true);
         }
 
-        // Sauvegarder la position initiale du timer
         if (timerText != null)
         {
             timerInitialPosition = timerText.rectTransform.anchoredPosition;
@@ -158,7 +143,6 @@ public class UIManager : MonoBehaviour
 
     private void Update()
     {
-        // Ne mettre à jour l'UI que si le jeu est actif ET que GameManager existe
         if (GameManager.Instance != null && GameManager.Instance.isGameActive)
         {
             UpdateUI();
@@ -169,22 +153,15 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
         
-        // Mettre à jour le score
         scoreText.text = $"{GameManager.Instance.displayedScore}";
-
-        // Mettre à jour le timer avec changement de couleur
         float timeRemaining = GameManager.Instance.timeRemaining;
         timerText.text = $"{Mathf.CeilToInt(timeRemaining)}";
         
-        // Changer la couleur en rouge et faire trembler si <= 10 secondes
         if (timeRemaining <= 10f)
         {
             timerText.color = Color.red;
-            
-            // Vérifier si une animation de tremblement est déjà en cours
             if (!DOTween.IsTweening(timerText.transform))
             {
-                // Créer un effet de tremblement autour de la position initiale
                 timerText.rectTransform.DOShakeAnchorPos(0.5f, 5f, 20, 90, false, true)
                     .SetLoops(-1, LoopType.Restart)
                     .SetId("TimerShake");
@@ -193,9 +170,7 @@ public class UIManager : MonoBehaviour
         else
         {
             timerText.color = Color.white;
-            // Arrêter le tremblement si actif
             DOTween.Kill("TimerShake");
-            // Réinitialiser la position
             timerText.rectTransform.anchoredPosition = timerInitialPosition;
         }
     }
@@ -203,50 +178,44 @@ public class UIManager : MonoBehaviour
     private void UpdateWantedCharacter(CharacterCard character)
     {
         if (isRouletteRunning) return;
-        
-        // Ne pas activer le panel ici, laissez WantedRouletteEffect le faire
         StartCoroutine(WantedRouletteEffect(character));
     }
 
     private IEnumerator WantedRouletteEffect(CharacterCard finalCharacter)
     {
+            GameManager.Instance.PauseGame();
+
         isRouletteRunning = true;
         
-        // Désactiver temporairement la grille
+        // Désactiver temporairement la grille pour éviter un pattern en arrière-plan
         gridCanvas.gameObject.SetActive(false);
         
-        // S'assurer d'avoir un sprite initial
         if (wantedCharacterImage.sprite == null)
         {
             wantedCharacterImage.sprite = GameManager.Instance.GetRandomSprite();
         }
         
-        // Animation de descente initiale (sans changer la taille de l'image)
+        // Animation de démarrage de la roulette
         Sequence startSequence = DOTween.Sequence();
         startSequence.Join(wantedPanel.DOAnchorPos(roulettePosition, 0.5f))
-                    .Join(wantedPanel.DOSizeDelta(rouletteWantedSize, 0.5f))
-                    .Join(wantedPanel.transform.DOScale(rouletteScale, 0.5f));
-
+                     .Join(wantedPanel.DOSizeDelta(rouletteWantedSize, 0.5f))
+                     .Join(wantedPanel.transform.DOScale(rouletteScale, 0.5f));
         yield return startSequence.WaitForCompletion();
 
-        // Effet de roulette
         float elapsedTime = 0;
         while (elapsedTime < rouletteDuration)
         {
             Sprite randomSprite = GameManager.Instance.GetRandomSprite();
             wantedCharacterImage.sprite = randomSprite;
-            
-            // Ajuster la taille de l'image après avoir assigné le sprite
             float imageRatio = randomSprite.rect.width / randomSprite.rect.height;
             float rouletteHeight = rouletteWantedSize.y * wantedImageScale;
             float rouletteWidth = rouletteHeight * imageRatio;
             wantedImageRect.sizeDelta = new Vector2(rouletteWidth, rouletteHeight);
-            
             yield return new WaitForSeconds(changeImageDelay);
             elapsedTime += changeImageDelay;
         }
 
-        // Ralentir à la fin avec des délais plus longs
+        // Ralentir la roulette en fin de cycle
         float[] finalDelays = { 0.2f, 0.3f, 0.4f, 0.5f };
         foreach (float delay in finalDelays)
         {
@@ -255,36 +224,34 @@ public class UIManager : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
-        // Afficher le sprite final
+        // Afficher le sprite final du wanted
         wantedCharacterImage.sprite = finalCharacter.characterSprite;
         AudioManager.Instance.PlayCorrect();
 
         yield return new WaitForSeconds(0.5f);
 
-        // Calculer la taille finale de l'image
+        // Calcul de la taille finale de l'image
         float finalImageRatio = finalCharacter.characterSprite.rect.width / finalCharacter.characterSprite.rect.height;
         float finalHeight = finalWantedSize.y * wantedImageScale;
         float finalWidth = finalHeight * finalImageRatio;
         Vector2 finalImageSize = new Vector2(finalWidth, finalHeight);
 
-        // Animation de remontée et rétrécissement
         Sequence endSequence = DOTween.Sequence();
         endSequence.Join(wantedPanel.DOAnchorPos(finalWantedPosition, 0.5f))
-                  .Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
-                  .Join(wantedPanel.transform.DOScale(1f, 0.5f))
-                  .Join(wantedImageRect.DOSizeDelta(finalImageSize, 0.5f));
-
+                   .Join(wantedPanel.DOSizeDelta(finalWantedSize, 0.5f))
+                   .Join(wantedPanel.transform.DOScale(1f, 0.5f))
+                   .Join(wantedImageRect.DOSizeDelta(finalImageSize, 0.5f));
         yield return endSequence.WaitForCompletion();
 
-        // Réactiver la grille et les cartes
+        // Réactiver la grille et lancer l'animation d'entrée des cartes
         gridCanvas.gameObject.SetActive(true);
         
-        var gridManager = FindObjectOfType<GridManager>();
+        GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
             gridManager.AnimateCardsEntry();
         }
-
+        
         GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
     }
@@ -293,8 +260,6 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
-
-        // Afficher le SafeArea et l'UI Canvas quand la partie commence
         if (SafeArea != null)
         {
             SafeArea.SetActive(true);
@@ -305,7 +270,6 @@ public class UIManager : MonoBehaviour
             uiCanvas.gameObject.SetActive(true);
         }
 
-        // Réinitialiser le WantedPanel et l'image à leur taille normale
         if (wantedPanel != null)
         {
             wantedPanel.transform.localScale = Vector3.one;
@@ -326,14 +290,11 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(true);
-
-        // Cacher le SafeArea et l'UI Canvas à la fin de la partie
         if (SafeArea != null)
         {
             SafeArea.SetActive(false);
             Board.SetActive(false);
         }
-
         if (uiCanvas != null)
         {
             uiCanvas.gameObject.SetActive(false);
@@ -355,9 +316,8 @@ public class UIManager : MonoBehaviour
     {
         if (difficultyText != null)
         {
-            difficultyText.text = $"Niveau {threshold/500 + 1}";
+            difficultyText.text = $"Niveau {threshold / 500 + 1}";
         }
-
         if (currentStateText != null)
         {
             string stateText = state switch
@@ -375,27 +335,22 @@ public class UIManager : MonoBehaviour
 
     private void ConfigureForPortrait()
     {
-        // Ajuster le wanted
         finalWantedSize = mobileWantedSize;
         finalWantedPosition = mobileWantedPosition;
-        
-        // Ajuster la taille des textes
         if (scoreText != null) scoreText.fontSize = 40;
         if (timerText != null) timerText.fontSize = 40;
     }
 
     private void UpdateScoreText(float score)
     {
-        // Pendant le jeu, n'afficher que le displayedScore
         if (GameManager.Instance.isGameActive)
         {
             scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
         }
     }
 
-    // Ajouter cette méthode pour nettoyer les tweens au besoin
     private void OnDestroy()
     {
         DOTween.Kill("TimerShake");
     }
-} 
+}

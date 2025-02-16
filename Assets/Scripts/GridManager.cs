@@ -18,7 +18,7 @@ public class GridManager : MonoBehaviour
     public RectTransform gridContainer;
 
     [Header("Roulette Settings")]
-    public float rouletteDuration = 2f;         // Durée de l'effet roulette avant d'afficher les cartes
+    public float rouletteDuration = 2f;         // Durée de l'effet roulette
     public float highlightDelay = 0.1f;
     public float delayAfterSuccess = 1f;          // Délai après un succès
 
@@ -37,12 +37,9 @@ public class GridManager : MonoBehaviour
     public List<CharacterCard> cards = new List<CharacterCard>();
     public CharacterCard wantedCard { get; private set; }
 
-    // Variable qui détermine si le mode Only One Color sera actif ce round.
+    // Variable qui détermine si le mode Only One Color est actif
     private bool onlyOneColorActive = false;
 
-    /// <summary>
-    /// Différents états possibles pour l'agencement et le mouvement des cartes.
-    /// </summary>
     public enum GridState
     {
         Aligned,
@@ -95,14 +92,11 @@ public class GridManager : MonoBehaviour
     [Header("Circular Settings")]
     public int maxCardsPerCircle = 12;
 
-    /// <summary>
-    /// Liste de tous les Tweens actifs (Tweener ou Sequence).
-    /// </summary>
+    // Liste des tweens actifs
     private List<Tween> activeTweens = new List<Tween>();
 
     private void Start()
     {
-        // Écoute des événements du GameManager
         GameManager.Instance.onGameStart.AddListener(InitializeGrid);
         GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
 
@@ -126,9 +120,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Ajuste certains paramètres pour les plateformes mobiles.
-    /// </summary>
     private void AdjustForMobileIfNeeded()
     {
         if (Application.isMobilePlatform)
@@ -146,9 +137,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Retourne une position aléatoire dans le playArea en évitant les chevauchements.
-    /// </summary>
     private Vector2 GetValidCardPosition()
     {
         int maxAttempts = 50;
@@ -175,23 +163,22 @@ public class GridManager : MonoBehaviour
                 return position;
             attempts++;
         }
-        return Vector2.zero;
+        // En cas d'échec, retourne une position aléatoire
+        return new Vector2(
+            Random.Range(-playAreaWidth / 2, playAreaWidth / 2),
+            Random.Range(-playAreaHeight / 2, playAreaHeight / 2)
+        );
     }
 
-    /// <summary>
-    /// Initialise la grille : création des cartes, sélection du Wanted, etc.
-    /// Dans le mode Only One Color, si l'option est cochée dans l'inspecteur, on active le mode uniquement avec une chance sur 2.
-    /// Pour les cartes non‑Wanted, on affecte aléatoirement une expression différente (excluant celle du Wanted) si le mode est actif.
-    /// </summary>
     public void InitializeGrid()
     {
         AdjustForMobileIfNeeded();
         UpdateDifficultyLevel();
 
-        // Déterminer aléatoirement si le mode Only One Color sera actif ce round (50 % de chances)
+        // Détermine aléatoirement si le mode Only One Color sera actif
         onlyOneColorActive = currentLevel.onlyOneColor && (Random.value < 0.5f);
 
-        // Nettoyer les cartes existantes
+        // Détruire les cartes existantes
         foreach (var existingCard in cards)
         {
             if (existingCard != null)
@@ -201,13 +188,12 @@ public class GridManager : MonoBehaviour
 
         int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
 
-        // Choix du sprite pour le Wanted
+        // Choix du sprite pour le wanted
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
         string wantedColor = null;
         Sprite[] availableSprites = null;
         if (onlyOneColorActive)
         {
-            // Recherche dans le groupe correspondant
             foreach (var group in GameManager.Instance.allCharacterSprites)
             {
                 if (System.Array.Exists(group.expressions, s => s == wantedSprite))
@@ -219,20 +205,20 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // IMPORTANT: S'assurer que la première carte est toujours créée
+        // Création du wanted
         GameObject wantedObj = Instantiate(characterCardPrefab, gridContainer);
+        // On n'utilise plus le nom du GameObject pour identifier le wanted (on utilisera la propriété characterName)
         CharacterCard wantedCardComponent = wantedObj.GetComponent<CharacterCard>();
         RectTransform wantedRt = wantedObj.GetComponent<RectTransform>();
         wantedRt.anchoredPosition = GetValidCardPosition();
-        
-        // La première carte est le Wanted
+        // Initialise le wanted avec "Wanted" comme characterName
         wantedCardComponent.Initialize("Wanted", wantedSprite);
-        // IMPORTANT: placer le wanted au-dessus des autres cartes pour qu'il soit toujours cliquable
+        // Place le wanted au-dessus des autres cartes
         wantedObj.transform.SetAsLastSibling();
         wantedCard = wantedCardComponent;
         cards.Add(wantedCardComponent);
 
-        // Créer les autres cartes
+        // Création des autres cartes
         for (int i = 1; i < numberOfCards; i++)
         {
             GameObject cardObj = Instantiate(characterCardPrefab, gridContainer);
@@ -242,7 +228,6 @@ public class GridManager : MonoBehaviour
 
             if (onlyOneColorActive && wantedColor != null && availableSprites != null && availableSprites.Length > 0)
             {
-                // Choix aléatoire parmi les sprites disponibles
                 Sprite spriteToUse = availableSprites[Random.Range(0, availableSprites.Length)];
                 cardComponent.Initialize("Card_" + i, spriteToUse);
             }
@@ -260,7 +245,7 @@ public class GridManager : MonoBehaviour
 
         if (wantedCard == null)
         {
-            Debug.LogError("Wanted Card is null!");
+            Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
             return;
         }
 
@@ -268,58 +253,38 @@ public class GridManager : MonoBehaviour
         FilterCardsByColor(wantedCard);
         ArrangeCardsBasedOnState();
 
-        // Masquer initialement toutes les cartes
+        // Masquer toutes les cartes pour préparer l'animation d'entrée
         foreach (var c in cards)
         {
             c.gameObject.SetActive(false);
         }
     }
 
-    /// <summary>
-    /// Anime l'entrée (scale 0 -> 1) de toutes les cartes et, à la fin, les arrange.
-    /// </summary>
     public void AnimateCardsEntry()
     {
-        int cardsCompleted = 0;
-        for (int i = 0; i < cards.Count; i++)
+        // Lance l'animation d'entrée de toutes les cartes simultanément
+        foreach (var card in cards)
         {
-            var card = cards[i];
             if (card == null) continue;
-            
             card.gameObject.SetActive(true);
             card.transform.localScale = Vector3.zero;
-            
-            // Ajouter un délai progressif pour une entrée en cascade
-            float delay = i * 0.05f;
-            card.transform.DOScale(Vector3.one, 0.3f)
-                .SetEase(Ease.OutBack)
-                .SetDelay(delay)
-                .OnComplete(() =>
-                {
-                    cardsCompleted++;
-                    if (cardsCompleted >= cards.Count)
-                    {
-                        ArrangeCardsBasedOnState();
-                    }
-                });
+            card.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
         }
+        // Après 0.3s, réarranger les cartes
+        DOVirtual.DelayedCall(0.3f, () =>
+        {
+            ArrangeCardsBasedOnState();
+        });
     }
 
-    /// <summary>
-    /// Crée un nouveau Wanted après un succès.
-    /// </summary>
     public void CreateNewWanted()
     {
-        // D'abord faire disparaître toutes les cartes sauf le Wanted
         StartCoroutine(HideCardsAndStartRoulette());
     }
 
-    /// <summary>
-    /// Nouvelle coroutine pour gérer la séquence.
-    /// </summary>
     private IEnumerator HideCardsAndStartRoulette()
     {
-        // Faire disparaître toutes les cartes sauf le Wanted
+        // Faire disparaître toutes les cartes sauf le wanted
         foreach (var card in cards)
         {
             if (card != null && card != wantedCard)
@@ -327,63 +292,37 @@ public class GridManager : MonoBehaviour
                 card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
             }
         }
-
-        // Attendre que les animations de disparition soient terminées
         yield return new WaitForSeconds(0.5f);
-
-        // Lancer l'effet roulette
         StartCoroutine(RouletteEffect());
     }
 
-    /// <summary>
-    /// Coroutine de l'effet roulette pour choisir un nouveau Wanted.
-    /// En mode Only One Color, le nouveau Wanted reçoit un sprite et les autres cartes reçoivent aléatoirement une expression différente (excluant celle du Wanted) si le mode est actif.
-    /// </summary>
     private IEnumerator RouletteEffect()
     {
+        
         yield return new WaitForSeconds(delayAfterSuccess);
 
-        // Sauvegarder l'ancien wanted pour la transition
-        CharacterCard oldWanted = wantedCard;
-        
-        // Mettre à jour la difficulté avant de réinitialiser la grille
         UpdateDifficultyOnScoreChange();
-        
-        // Réinitialiser la grille avec le nouveau nombre de cartes selon le niveau actuel
         InitializeGrid();
 
-        // Trouver le nouveau wanted dans la nouvelle grille
-        wantedCard = cards.FirstOrDefault(c => c.name == "Wanted");
-        
+        // Recherche le nouveau wanted par la propriété characterName
+        wantedCard = cards.FirstOrDefault(c => c.characterName == "Wanted");
         if (wantedCard == null)
         {
             Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
             yield break;
         }
-
-        // IMPORTANT: placer le nouveau wanted au-dessus des autres cartes
         wantedCard.transform.SetAsLastSibling();
-
-        // Mise à jour du GameManager avec le nouveau wanted
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
 
-        // Animer l'entrée des nouvelles cartes
-        AnimateCardsEntry();
-        
+        // IMPORTANT : on ne lance plus AnimateCardsEntry() ici.
+        // On attend simplement un court délai, puis on reprend le jeu.
         yield return new WaitForSeconds(0.5f);
-        
-        // Reprendre le jeu après la roulette
-        GameManager.Instance.ResumeGame();
+
     }
 
-    /// <summary>
-    /// Met à jour le niveau de difficulté et sélectionne un état d'agencement.
-    /// </summary>
     private void UpdateDifficultyLevel()
     {
         float currentScore = GameManager.Instance.internalScore;
-        
-        // Trouver le niveau de difficulté approprié
         DifficultyLevel newLevel = difficultyLevels[0];
         for (int i = difficultyLevels.Length - 1; i >= 0; i--)
         {
@@ -393,25 +332,18 @@ public class GridManager : MonoBehaviour
                 break;
             }
         }
-
-        // Mettre à jour le niveau et l'état
         currentLevel = newLevel;
         currentState = currentLevel.possibleStates[Random.Range(0, currentLevel.possibleStates.Length)];
 
-        // Mettre à jour l'affichage UI du niveau si nécessaire
         if (UIManager.Instance != null)
         {
             UIManager.Instance.UpdateDifficultyText(currentLevel.scoreThreshold, currentState);
         }
     }
 
-    /// <summary>
-    /// Arrange ou anime les cartes selon l'état sélectionné.
-    /// </summary>
     private void ArrangeCardsBasedOnState()
     {
         StopAllCardMovements();
-        // Mélanger les cartes avant de les arranger
         ShuffleCards();
         
         DOVirtual.DelayedCall(0.1f, () =>
@@ -452,7 +384,7 @@ public class GridManager : MonoBehaviour
         });
     }
 
-    #region Arrangements & Mouvements classiques
+    #region Arrangements & Mouvements
 
     private void ArrangeCardsInLine()
     {
@@ -752,6 +684,7 @@ public class GridManager : MonoBehaviour
     {
         RectTransform rectTransform = card.GetComponent<RectTransform>();
         rectTransform.DOKill();
+
         void StartNewMovement()
         {
             Vector2 targetPos = GetValidCardPosition();
@@ -775,15 +708,12 @@ public class GridManager : MonoBehaviour
         {
             if (card != null)
             {
-                RectTransform rectTransform = card.GetComponent<RectTransform>();
-                rectTransform.DOKill();
+                card.GetComponent<RectTransform>().DOKill();
+                card.transform.DOKill();
             }
         }
     }
 
-    /// <summary>
-    /// Désactive toutes les cartes sauf le Wanted.
-    /// </summary>
     public void HideAllButWanted()
     {
         StopAllCardMovements();
@@ -811,12 +741,10 @@ public class GridManager : MonoBehaviour
     {
         if (onlyOneColorActive && wantedCard != null)
         {
-            // Mode Only One Color : on filtre par couleur
             foreach (var group in GameManager.Instance.allCharacterSprites)
             {
                 if (System.Array.Exists(group.expressions, s => s == wantedCard.characterSprite))
                 {
-                    // On active seulement les cartes de la même couleur
                     foreach (var card in cards)
                     {
                         bool sameColor = System.Array.Exists(group.expressions, s => s == card.characterSprite);
@@ -828,7 +756,6 @@ public class GridManager : MonoBehaviour
         }
         else
         {
-            // Mode normal : on active toutes les cartes
             foreach (var card in cards)
             {
                 card.gameObject.SetActive(true);
@@ -836,7 +763,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // Correction : Méthode GetAverageColor protégée par try/catch pour éviter les erreurs si la texture n'est pas lisible
     private Color GetAverageColor(Texture2D texture)
     {
         if (texture == null)
@@ -876,7 +802,6 @@ public class GridManager : MonoBehaviour
 
     private void ShuffleCards()
     {
-        // Mélanger la liste des cartes
         for (int i = cards.Count - 1; i > 0; i--)
         {
             int randomIndex = Random.Range(0, i + 1);

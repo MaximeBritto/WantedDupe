@@ -20,7 +20,7 @@ public class GameManager : MonoBehaviour
     
     [Header("Game Settings")]
     public float roundDuration = 30f;
-    public int startingGridSize = 16; // 4x4 grid
+    public int startingGridSize = 16; // Exemple de grille 4x4
     public float scorePerCorrectClick = 1f;
     
     [Header("Game State")]
@@ -34,14 +34,14 @@ public class GameManager : MonoBehaviour
     public UnityEvent<float> onScoreChanged = new UnityEvent<float>();
 
     [Header("Timer Settings")]
-    public float maxTime = 40f;       // Temps maximum possible
-    public float penaltyTime = 5f;    // Temps retiré pour une mauvaise carte
+    public float maxTime = 40f;
+    public float penaltyTime = 5f;
 
     [Header("Score Settings")]
     public int maxComboMultiplier = 5;
-    public int currentComboCount { get; private set; } = 0;  // Accessible en lecture seule
-    public float displayedScore { get; private set; } = 0f;  // Score affiché (multiples de 5)
-    public float internalScore { get; private set; } = 0f;  // Score réel interne (augmente de 1)
+    public int currentComboCount { get; private set; } = 0;
+    public float displayedScore { get; private set; } = 0f;
+    public float internalScore { get; private set; } = 0f;
     
     public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
@@ -63,15 +63,13 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
-        // Jouer le son du bouton
         AudioManager.Instance?.PlayButtonSound();
-        // Démarrer la musique de fond
         AudioManager.Instance?.StartBackgroundMusic();
         
         internalScore = 0f;
         displayedScore = 0f;
-        currentComboCount = 0;  // Réinitialiser le combo
-        onComboChanged.Invoke(0f);  // Réinitialiser le slider
+        currentComboCount = 0;
+        onComboChanged.Invoke(0f);
         
         timeRemaining = roundDuration;
         isGameActive = true;
@@ -88,9 +86,7 @@ public class GameManager : MonoBehaviour
             if (!isPaused)
             {
                 timeRemaining -= 0.1f;
-                // Mettre à jour la vitesse de la musique
                 AudioManager.Instance?.UpdateMusicSpeed(timeRemaining);
-                
                 if (timeRemaining <= 0)
                 {
                     GameOver();
@@ -101,75 +97,75 @@ public class GameManager : MonoBehaviour
     }
 
     public void GameOver()
-    {
-        isGameActive = false;
-        
-        // Calculer le score final en incluant les points du slider
-        float finalScore = displayedScore + currentComboCount;
-        onScoreChanged.Invoke(finalScore);
-        
-        AudioManager.Instance?.StopBackgroundMusic();
-        StartCoroutine(RevealCardsExceptWantedAndGameOver());
-    }
+{
+    isGameActive = false;
+    
+    float finalScore = displayedScore + currentComboCount;
+    onScoreChanged.Invoke(finalScore);
 
-    /// <summary>
-    /// Coroutine qui fait disparaître toutes les cartes sauf celle du wanted, puis déclenche l'écran Game Over.
-    /// </summary>
-    private IEnumerator RevealCardsExceptWantedAndGameOver()
+    AudioManager.Instance?.StopBackgroundMusic();
+
+    // On déclenche la séquence pour ne laisser que le Wanted visible
+    StartCoroutine(RevealWantedAndGameOver());
+}
+
+/// <summary>
+/// Coroutine qui masque toutes les cartes sauf le Wanted,
+/// puis affiche l'écran de Game Over.
+/// </summary>
+private IEnumerator RevealWantedAndGameOver()
+{
+    var gridManager = FindObjectOfType<GridManager>();
+    if (gridManager != null)
     {
-        // Faire disparaître toutes les cartes sauf le wanted
-        var gridManager = Object.FindFirstObjectByType<GridManager>();
-        if (gridManager != null)
+        foreach (var card in gridManager.cards)
         {
-            foreach (var card in gridManager.cards)
+            if (card != null)
             {
-                if (card != null && card != wantedCharacter)
+                if (card != wantedCharacter)
                 {
-                    card.transform.DOScale(0f, 0.3f)
-                        .SetEase(Ease.InBack);
+                    // On fait disparaître les cartes non-wanted
+                    card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+                }
+                else
+                {
+                    // On peut agrandir légèrement le Wanted, ou le mettre en surbrillance
+                    card.transform.DOScale(1.2f, 0.3f).SetLoops(2, LoopType.Yoyo)
+                        .SetEase(Ease.OutBack);
                 }
             }
         }
-        yield return new WaitForSeconds(0.5f);
-        onGameOver.Invoke();
     }
+
+    // Attendre un peu pour finir l'animation de disparition
+    yield return new WaitForSeconds(1f);
+
+    // On peut ensuite déclencher l'écran Game Over
+    onGameOver.Invoke();
+}
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
-        // Jouer le son de sélection
         AudioManager.Instance?.PlayWantedSelection();
-        
         wantedCharacter = character;
         onNewWantedCharacter.Invoke(character);
     }
 
     public void AddScore()
     {
-        // Ajouter au combo
         currentComboCount++;
-        
-        // Si le combo atteint le maximum
         if (currentComboCount >= maxComboMultiplier)
         {
-            // Ajouter 5 points au score affiché
             displayedScore += maxComboMultiplier;
-            // Réinitialiser le combo
             currentComboCount = 0;
-            // Mettre à jour l'affichage du score
             onScoreChanged.Invoke(displayedScore);
         }
-        
-        // Toujours mettre à jour le slider
         onComboChanged.Invoke((float)currentComboCount / maxComboMultiplier);
-        
-        // Le score réel continue d'augmenter de 1
         internalScore += scorePerCorrectClick;
-        
-        // Ajouter du temps
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
 
-        // Créer un nouveau wanted (les cartes disparaîtront dans le GridManager via CreateNewWanted)
-        var gridManager = Object.FindFirstObjectByType<GridManager>();
+        // Idéalement, stockez une référence au GridManager pour éviter FindFirstObjectByType
+        GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
             PauseGame();
@@ -199,9 +195,7 @@ public class GameManager : MonoBehaviour
         {
             roundDuration = Mathf.Max(10f, roundDuration - 2f);
         }
-        
         timeRemaining = roundDuration;
-        
         onGameStart.Invoke();
     }
 
