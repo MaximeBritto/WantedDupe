@@ -97,52 +97,52 @@ public class GameManager : MonoBehaviour
     }
 
     public void GameOver()
-{
-    isGameActive = false;
-    
-    float finalScore = displayedScore + currentComboCount;
-    onScoreChanged.Invoke(finalScore);
-
-    AudioManager.Instance?.StopBackgroundMusic();
-
-    // On déclenche la séquence pour ne laisser que le Wanted visible
-    StartCoroutine(RevealWantedAndGameOver());
-}
-
-/// <summary>
-/// Coroutine qui masque toutes les cartes sauf le Wanted,
-/// puis affiche l'écran de Game Over.
-/// </summary>
-private IEnumerator RevealWantedAndGameOver()
-{
-    var gridManager = FindObjectOfType<GridManager>();
-    if (gridManager != null)
     {
-        foreach (var card in gridManager.cards)
+        isGameActive = false;
+        
+        float finalScore = displayedScore + currentComboCount;
+        onScoreChanged.Invoke(finalScore);
+
+        AudioManager.Instance?.StopBackgroundMusic();
+
+        // On déclenche la séquence pour ne laisser que le Wanted visible
+        StartCoroutine(RevealWantedAndGameOver());
+    }
+
+    /// <summary>
+    /// Coroutine qui masque toutes les cartes sauf le Wanted,
+    /// puis affiche l'écran de Game Over.
+    /// </summary>
+    private IEnumerator RevealWantedAndGameOver()
+    {
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
         {
-            if (card != null)
+            foreach (var card in gridManager.cards)
             {
-                if (card != wantedCharacter)
+                if (card != null)
                 {
-                    // On fait disparaître les cartes non-wanted
-                    card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
-                }
-                else
-                {
-                    // On peut agrandir légèrement le Wanted, ou le mettre en surbrillance
-                    card.transform.DOScale(1.2f, 0.3f).SetLoops(2, LoopType.Yoyo)
-                        .SetEase(Ease.OutBack);
+                    if (card != wantedCharacter)
+                    {
+                        // On fait disparaître les cartes non-wanted
+                        card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+                    }
+                    else
+                    {
+                        // On peut agrandir légèrement le Wanted, ou le mettre en surbrillance
+                        card.transform.DOScale(1.2f, 0.3f).SetLoops(2, LoopType.Yoyo)
+                            .SetEase(Ease.OutBack);
+                    }
                 }
             }
         }
+
+        // Attendre un peu pour finir l'animation de disparition
+        yield return new WaitForSeconds(1f);
+
+        // On peut ensuite déclencher l'écran Game Over
+        onGameOver.Invoke();
     }
-
-    // Attendre un peu pour finir l'animation de disparition
-    yield return new WaitForSeconds(1f);
-
-    // On peut ensuite déclencher l'écran Game Over
-    onGameOver.Invoke();
-}
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
@@ -153,24 +153,37 @@ private IEnumerator RevealWantedAndGameOver()
 
     public void AddScore()
     {
+        // Ajouter au combo
         currentComboCount++;
+        
+        // Si le combo atteint le maximum
         if (currentComboCount >= maxComboMultiplier)
         {
-            displayedScore += maxComboMultiplier;
-            currentComboCount = 0;
-            onScoreChanged.Invoke(displayedScore);
+            // Ne pas réinitialiser le combo ici, le ComboSlider s'en chargera
+            // currentComboCount = 0;
+            // Le score sera incrémenté progressivement par le ComboSlider
         }
+        
+        // Mettre à jour le slider
         onComboChanged.Invoke((float)currentComboCount / maxComboMultiplier);
+        
+        // Le score réel continue d'augmenter de 1
         internalScore += scorePerCorrectClick;
+        
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
-
-        // Idéalement, stockez une référence au GridManager pour éviter FindFirstObjectByType
-        GridManager gridManager = FindObjectOfType<GridManager>();
+        var gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
             PauseGame();
             gridManager.CreateNewWanted();
         }
+    }
+
+    // Nouvelle méthode pour réinitialiser le combo après l'animation
+    public void ResetCombo()
+    {
+        currentComboCount = 0;
+        onComboChanged.Invoke(0f);
     }
 
     public void ApplyTimePenalty()
@@ -207,5 +220,11 @@ private IEnumerator RevealWantedAndGameOver()
     public void ResumeGame()
     {
         isPaused = false;
+    }
+
+    public void IncrementDisplayedScore()
+    {
+        displayedScore += 1;
+        onScoreChanged.Invoke(displayedScore);
     }
 }
