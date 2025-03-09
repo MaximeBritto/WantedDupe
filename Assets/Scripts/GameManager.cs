@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Ads")]
     private AdMobAdsScript adMobAdsScript;
+    private int gameCount = 0;  // Compteur de parties
 
     private System.Random random;
     private bool isPaused = false;
@@ -90,6 +91,7 @@ public class GameManager : MonoBehaviour
         isGameActive = true;
         onGameStart.Invoke();
         StartCoroutine(GameTimer());
+        gameCount++;  // Incrémenter le compteur de parties
     }
 
     private IEnumerator GameTimer()
@@ -126,8 +128,56 @@ public class GameManager : MonoBehaviour
 
         AudioManager.Instance?.StopBackgroundMusic();
 
-        // On déclenche la séquence pour ne laisser que le Wanted visible
-        StartCoroutine(RevealWantedAndGameOver());
+        // Vérifier si c'est la 2ème partie
+        if (gameCount % 2 == 0 && adMobAdsScript != null)
+        {
+            // Afficher l'interstitial avant l'écran de game over
+            StartCoroutine(ShowInterstitialThenGameOver());
+        }
+        else
+        {
+            // On déclenche la séquence pour ne laisser que le Wanted visible
+            StartCoroutine(RevealWantedAndGameOver());
+        }
+    }
+
+    private IEnumerator ShowInterstitialThenGameOver()
+    {
+        // D'abord révéler le wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null)
+                {
+                    if (card != wantedCharacter)
+                    {
+                        card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+                    }
+                    else
+                    {
+                        card.transform.DOScale(1.2f, 0.3f).SetLoops(2, LoopType.Yoyo)
+                            .SetEase(Ease.OutBack);
+                    }
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(1f);
+
+        // Montrer l'interstitial
+        if (adMobAdsScript != null)
+        {
+            adMobAdsScript.LoadInterstitialAd();
+            adMobAdsScript.ShowInterstitialAd();
+        }
+
+        // Attendre un peu pour s'assurer que l'interstitial a eu le temps de s'afficher
+        yield return new WaitForSeconds(0.5f);
+
+        // Afficher l'écran de game over
+        onGameOver.Invoke();
     }
 
     /// <summary>
