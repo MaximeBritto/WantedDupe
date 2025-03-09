@@ -45,6 +45,9 @@ public class GameManager : MonoBehaviour
     
     public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
+    [Header("Ads")]
+    private AdMobAdsScript adMobAdsScript;
+
     private System.Random random;
     private bool isPaused = false;
 
@@ -61,10 +64,22 @@ public class GameManager : MonoBehaviour
         random = new System.Random();
     }
 
+    private void Start()
+    {
+        // Récupérer la référence à AdMobAdsScript
+        adMobAdsScript = FindObjectOfType<AdMobAdsScript>();
+    }
+
     public void StartGame()
     {
         AudioManager.Instance?.PlayButtonSound();
         AudioManager.Instance?.StartBackgroundMusic();
+        
+        // Charger et afficher la bannière publicitaire
+        if (adMobAdsScript != null)
+        {
+            adMobAdsScript.LoadBannerAd();
+        }
         
         internalScore = 0f;
         displayedScore = 0f;
@@ -99,6 +114,12 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         isGameActive = false;
+        
+        // Détruire la bannière publicitaire
+        if (adMobAdsScript != null)
+        {
+            adMobAdsScript.DestroyBannerAd();
+        }
         
         float finalScore = displayedScore + currentComboCount;
         onScoreChanged.Invoke(finalScore);
