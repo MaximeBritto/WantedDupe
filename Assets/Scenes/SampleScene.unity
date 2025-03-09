@@ -3671,11 +3671,11 @@ MonoBehaviour:
   cards: []
   difficultyLevels:
   - scoreThreshold: 0
-    minCards: 42
-    maxCards: 42
+    minCards: 4
+    maxCards: 4
     moveSpeed: 1
-    possibleStates: 06000000
-    fixedColumns: 5
+    possibleStates: 01000000
+    fixedColumns: 2
     fixedColumnSpacing: 150
     onlyOneColor: 0
   - scoreThreshold: 1
