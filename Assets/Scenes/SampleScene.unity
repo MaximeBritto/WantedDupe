@@ -5789,6 +5789,7 @@ MonoBehaviour:
   currentStateText: {fileID: 0}
   comboSlider: {fileID: 0}
   backgroundManager: {fileID: 0}
+  continueButton: {fileID: 2120377566}
 --- !u!4 &2031354612
 Transform:
   m_ObjectHideFlags: 0
