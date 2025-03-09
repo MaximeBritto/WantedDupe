@@ -67,7 +67,11 @@ public class UIManager : MonoBehaviour
     [Header("Background")]
     public BackgroundManager backgroundManager;
 
+    [Header("Continue Game")]
+    public Button continueButton;  // Bouton pour regarder la pub et continuer
+
     private Vector2 timerInitialPosition;
+    private AdMobAdsScript adMobAdsScript;
 
     private void Awake()
     {
@@ -126,6 +130,19 @@ public class UIManager : MonoBehaviour
         if (timerText != null)
         {
             timerInitialPosition = timerText.rectTransform.anchoredPosition;
+        }
+
+        adMobAdsScript = FindObjectOfType<AdMobAdsScript>();
+        
+        if (continueButton != null)
+        {
+            continueButton.onClick.AddListener(() => {
+                if (adMobAdsScript != null)
+                {
+                    adMobAdsScript.LoadRewardedAd();
+                    adMobAdsScript.ShowRewardedAd();
+                }
+            });
         }
     }
 
@@ -256,7 +273,7 @@ public class UIManager : MonoBehaviour
         isRouletteRunning = false;
     }
 
-    private void OnGameStart()
+    public void OnGameStart()
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
@@ -304,6 +321,12 @@ public class UIManager : MonoBehaviour
         {
             float finalScore = GameManager.Instance.displayedScore + GameManager.Instance.currentComboCount;
             finalScoreText.text = $"Score : {finalScore}";
+        }
+
+        // Activer le bouton continue
+        if (continueButton != null)
+        {
+            continueButton.gameObject.SetActive(true);
         }
     }
 

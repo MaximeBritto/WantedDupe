@@ -52,6 +52,8 @@ public class GameManager : MonoBehaviour
     private System.Random random;
     private bool isPaused = false;
 
+    private float savedTimeRemaining;  // Pour sauvegarder le temps restant
+
     private void Awake()
     {
         if (Instance == null)
@@ -116,6 +118,7 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         isGameActive = false;
+        savedTimeRemaining = timeRemaining;  // Sauvegarder le temps restant
         
         // Détruire la bannière publicitaire
         if (adMobAdsScript != null)
@@ -297,5 +300,24 @@ public class GameManager : MonoBehaviour
     {
         displayedScore += 1;
         onScoreChanged.Invoke(displayedScore);
+    }
+
+    // Nouvelle méthode pour continuer la partie après la rewarded ad
+    public void ContinueGame()
+    {
+        isGameActive = true;
+        timeRemaining = savedTimeRemaining + 10f;  // Ajouter 10 secondes bonus
+        AudioManager.Instance?.StartBackgroundMusic();
+        
+        // Recharger la bannière
+        if (adMobAdsScript != null)
+        {
+            adMobAdsScript.LoadBannerAd();
+        }
+
+        // Masquer le menu game over
+        UIManager.Instance?.OnGameStart();
+        
+        StartCoroutine(GameTimer());
     }
 }

@@ -182,6 +182,67 @@ public class AdMobAdsScript : MonoBehaviour
 
   #endregion
 
+
+    #region rewarded
+ public void LoadRewardedAd() {
+
+        if (rewardedAd!=null)
+        {
+            rewardedAd.Destroy();
+            rewardedAd = null;
+        }
+        var adRequest = new AdRequest();
+        adRequest.Keywords.Add("unity-admob-sample");
+
+        RewardedAd.Load(rewardId, adRequest, (RewardedAd ad, LoadAdError error) =>
+        {
+            if (error != null || ad == null)
+            {
+                Debug.LogError("Rewarded ad failed to load");
+                return;
+            }
+
+            rewardedAd = ad;
+            RegisterRewardedAdEvents();
+        });
+    }
+    public void ShowRewardedAd() {
+        if (rewardedAd != null && rewardedAd.CanShowAd())
+        {
+            rewardedAd.Show((Reward reward) =>
+            {
+                Debug.Log($"Rewarded ad reward: {reward.Amount} {reward.Type}");
+                GameManager.Instance?.ContinueGame(); // Appeler ContinueGame quand la récompense est gagnée
+            });
+        }
+        else {
+            Debug.LogError("Rewarded ad not ready");
+        }
+    }
+    private void RegisterRewardedAdEvents()
+    {
+        rewardedAd.OnAdFullScreenContentClosed += () =>
+        {
+            LoadRewardedAd(); // Recharger une nouvelle pub
+        };
+
+        rewardedAd.OnAdFullScreenContentFailed += (AdError error) =>
+        {
+            Debug.LogError("Rewarded ad failed to show");
+        };
+
+        rewardedAd.OnAdFullScreenContentOpened += () =>
+        {
+            Debug.Log("Rewarded ad opened");
+        };
+
+        rewardedAd.OnAdPaid += (AdValue adValue) =>
+        {
+            Debug.Log($"Rewarded ad paid {adValue.Value} {adValue.CurrencyCode}");
+        };
+    }
+    #endregion
+
   #region extra
 
   #endregion
