@@ -16,6 +16,7 @@ public class GridManager : MonoBehaviour
 
     [Header("References")]
     public RectTransform gridContainer;
+    public Transform gameBoardTransform; // Référence au Transform du GameBoard
 
     [Header("Roulette Settings")]
     public float rouletteDuration = 2f;         // Durée de l'effet roulette
@@ -33,6 +34,10 @@ public class GridManager : MonoBehaviour
     public RectTransform gameBoardRect;
     private float boardWidth;
     private float boardHeight;
+
+    // Dimensions en dur pour Aligned Movement et Column Movement
+    private const float FIXED_PLAY_AREA_WIDTH = 1107.2f;
+    private const float FIXED_PLAY_AREA_HEIGHT = 1475.1f;
 
     public List<CharacterCard> cards = new List<CharacterCard>();
     public CharacterCard wantedCard { get; private set; }
@@ -178,6 +183,9 @@ public class GridManager : MonoBehaviour
         // Détermine aléatoirement si le mode Only One Color sera actif
         onlyOneColorActive = currentLevel.onlyOneColor && (Random.value < 0.5f);
 
+        // Détermine la transform parent à utiliser (GameBoard si disponible, sinon gridContainer)
+        Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : gridContainer;
+
         // Détruire les cartes existantes
         foreach (var existingCard in cards)
         {
@@ -206,7 +214,7 @@ public class GridManager : MonoBehaviour
         }
 
         // Création du wanted
-        GameObject wantedObj = Instantiate(characterCardPrefab, gridContainer);
+        GameObject wantedObj = Instantiate(characterCardPrefab, parentTransform);
         // On n'utilise plus le nom du GameObject pour identifier le wanted (on utilisera la propriété characterName)
         CharacterCard wantedCardComponent = wantedObj.GetComponent<CharacterCard>();
         RectTransform wantedRt = wantedObj.GetComponent<RectTransform>();
@@ -221,7 +229,7 @@ public class GridManager : MonoBehaviour
         // Création des autres cartes
         for (int i = 1; i < numberOfCards; i++)
         {
-            GameObject cardObj = Instantiate(characterCardPrefab, gridContainer);
+            GameObject cardObj = Instantiate(characterCardPrefab, parentTransform);
             CharacterCard cardComponent = cardObj.GetComponent<CharacterCard>();
             RectTransform rt = cardObj.GetComponent<RectTransform>();
             rt.anchoredPosition = GetValidCardPosition();
@@ -334,6 +342,9 @@ public class GridManager : MonoBehaviour
         }
         currentLevel = newLevel;
         currentState = currentLevel.possibleStates[Random.Range(0, currentLevel.possibleStates.Length)];
+        
+        // Appliquer les dimensions spécifiques à l'état actuel
+        ApplyStateSpecificDimensions(currentState);
 
         if (UIManager.Instance != null)
         {
@@ -345,6 +356,9 @@ public class GridManager : MonoBehaviour
     {
         StopAllCardMovements();
         ShuffleCards();
+        
+        // Appliquer les dimensions temporaires selon le mode
+        ApplyStateSpecificDimensions(currentState);
         
         DOVirtual.DelayedCall(0.1f, () =>
         {
@@ -382,6 +396,33 @@ public class GridManager : MonoBehaviour
                     break;
             }
         });
+    }
+
+    // Nouvelle méthode pour gérer les dimensions selon l'état
+    private void ApplyStateSpecificDimensions(GridState state)
+    {
+        // Si l'état est lié à Aligned ou Columns (moving ou non), utiliser les dimensions en dur
+        if (state == GridState.AlignedMoving || state == GridState.ColumnsMoving ||
+            state == GridState.Aligned || state == GridState.Columns)
+        {
+            playAreaWidth = FIXED_PLAY_AREA_WIDTH;
+            playAreaHeight = FIXED_PLAY_AREA_HEIGHT;
+        }
+        else
+        {
+            // Pour tous les autres états, restaurer les dimensions du GameBoard
+            if (useGameBoardSize && gameBoardRect != null)
+            {
+                playAreaWidth = gameBoardRect.rect.width;
+                playAreaHeight = gameBoardRect.rect.height;
+            }
+            else
+            {
+                // Si l'option useGameBoardSize n'est pas activée, utiliser les valeurs par défaut
+                // Ces valeurs sont celles définies dans l'inspecteur ou celles modifiées par d'autres scripts
+                // Elles seront déjà à jour, donc pas besoin de les changer
+            }
+        }
     }
 
     #region Arrangements & Mouvements
@@ -510,31 +551,69 @@ public class GridManager : MonoBehaviour
         int columns = currentLevel.fixedColumns;
         if (totalCards < columns)
             columns = totalCards;
-        int maxRows = Mathf.CeilToInt((float)totalCards / columns);
-        float totalTravel = (maxRows - 1) * verticalSpacing;
-        float highestY = totalTravel / 2f;
+        
+        // Distribuer les cartes uniformément entre les colonnes
+        int[] cardsPerColumn = new int[columns];
+        int remainingCards = totalCards;
+        
+        // Distribuer d'abord le minimum de cartes par colonne
+        int minCardsPerColumn = remainingCards / columns;
+        for (int i = 0; i < columns; i++)
+        {
+            cardsPerColumn[i] = minCardsPerColumn;
+            remainingCards -= minCardsPerColumn;
+        }
+        
+        // Distribuer les cartes restantes une par une
+        for (int i = 0; i < remainingCards; i++)
+        {
+            cardsPerColumn[i]++;
+        }
+        
+        // Calculer la hauteur maximale nécessaire pour une colonne
+        int maxCardsInAnyColumn = cardsPerColumn.Max();
+        
+        // Utiliser playAreaHeight au lieu de calculer seulement basé sur le nombre de cartes
+        float usableHeight = playAreaHeight * 0.9f; // Utiliser 90% de la hauteur disponible
+        
+        // Garantir que l'espacement est suffisant pour le nombre de cartes
+        float actualVerticalSpacing = verticalSpacing;
+        if ((maxCardsInAnyColumn - 1) * verticalSpacing > usableHeight)
+        {
+            actualVerticalSpacing = usableHeight / (maxCardsInAnyColumn - 1);
+        }
+        
+        float highestY = usableHeight / 2f;
         float lowestY = -highestY;
         float totalColumnsWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
         float startX = -totalColumnsWidth / 2f;
 
         List<List<RectTransform>> columnsList = new List<List<RectTransform>>();
-        int currentCard = 0;
+        int currentCardIndex = 0;
+        
+        // Positionner les cartes dans chaque colonne
         for (int col = 0; col < columns; col++)
         {
             columnsList.Add(new List<RectTransform>());
-            for (int row = 0; row < maxRows && currentCard < totalCards; row++)
+            float xPos = startX + col * currentLevel.fixedColumnSpacing;
+            int cardsInThisColumn = cardsPerColumn[col];
+            
+            // Calculer l'espace total occupé par cette colonne
+            float columnHeight = (cardsInThisColumn - 1) * actualVerticalSpacing;
+            float columnStartY = columnHeight / 2f;
+            
+            for (int row = 0; row < cardsInThisColumn; row++)
             {
-                float xPos = startX + col * currentLevel.fixedColumnSpacing;
-                RectTransform rectTransform = cards[currentCard].GetComponent<RectTransform>();
-                int expectedCount = (totalCards % columns > col) ? maxRows : maxRows - 1;
-                float gap = ((float)(maxRows - expectedCount)) * verticalSpacing / 2f;
-                float initialY = highestY - gap - (row * verticalSpacing);
+                RectTransform rectTransform = cards[currentCardIndex].GetComponent<RectTransform>();
+                // Positionner uniformément depuis le haut
+                float initialY = columnStartY - (row * actualVerticalSpacing);
                 rectTransform.anchoredPosition = new Vector2(xPos, initialY);
                 columnsList[col].Add(rectTransform);
-                currentCard++;
+                currentCardIndex++;
             }
         }
 
+        // Configurer l'animation de déplacement
         for (int col = 0; col < columns; col++)
         {
             int capturedCol = col;
