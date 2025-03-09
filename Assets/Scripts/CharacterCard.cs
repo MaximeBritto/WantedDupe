@@ -56,31 +56,32 @@ public class CharacterCard : MonoBehaviour
         characterImage.sprite = characterSprite;
     }
 
-private bool alreadyClicked = false;
+    private bool alreadyClicked = false;
 
-private void OnCardClicked()
-{
-    if (alreadyClicked) return; // On ignore les clics ultérieurs
-
-    if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
-        return;
-
-    alreadyClicked = true; // Marquer la carte comme cliquée
-
-    if (GameManager.Instance.wantedCharacter == this)
+    private void OnCardClicked()
     {
-        // Logique de réussite
-        AudioManager.Instance.PlayCorrect();
-        StartCoroutine(HandleCorrectClick());
+        if (alreadyClicked) return; // On ignore les clics ultérieurs
+
+        if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
+            return;
+
+        if (GameManager.Instance.wantedCharacter == this)
+        {
+            // Logique de réussite - Marquer cette carte spécifique comme cliquée
+            alreadyClicked = true;
+            AudioManager.Instance.PlayCorrect();
+            StartCoroutine(HandleCorrectClick());
+        }
+        else
+        {
+            // Logique d'erreur
+            // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            cardAnimation.PlayWrongAnimation();
+            AudioManager.Instance.PlayWrong();
+            GameManager.Instance.ApplyTimePenalty();
+            // Ne PAS arrêter le mouvement de la carte
+        }
     }
-    else
-    {
-        // Logique d'erreur
-        cardAnimation.PlayWrongAnimation();
-        AudioManager.Instance.PlayWrong();
-        GameManager.Instance.ApplyTimePenalty();
-    }
-}
 
     private IEnumerator HandleCorrectClick()
     {

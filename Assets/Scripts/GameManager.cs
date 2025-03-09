@@ -45,6 +45,9 @@ public class GameManager : MonoBehaviour
     
     public UnityEvent<float> onComboChanged = new UnityEvent<float>();
 
+    // Indique si le joueur vient de cliquer sur une mauvaise carte
+    public bool justClickedWrongCard { get; private set; } = false;
+
     [Header("Ads")]
     private AdMobAdsScript adMobAdsScript;
     private int gameCount = 0;  // Compteur de parties
@@ -262,11 +265,23 @@ public class GameManager : MonoBehaviour
 
     public void ApplyTimePenalty()
     {
+        // Marquer qu'un clic incorrect vient d'être effectué
+        justClickedWrongCard = true;
+        
+        // Réinitialiser le flag après un court délai
+        StartCoroutine(ResetWrongClickFlag());
+        
         timeRemaining = Mathf.Max(0f, timeRemaining - penaltyTime);
         if (timeRemaining <= 0)
         {
             GameOver();
         }
+    }
+    
+    private IEnumerator ResetWrongClickFlag()
+    {
+        yield return new WaitForSeconds(0.5f);
+        justClickedWrongCard = false;
     }
 
     public Sprite GetRandomSprite()

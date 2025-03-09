@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using DG.Tweening;
 
 public class CardAnimation : MonoBehaviour
@@ -62,8 +63,33 @@ public class CardAnimation : MonoBehaviour
 
     public void PlayWrongAnimation()
     {
-        // Animation quand on se trompe
-        transform.DOShakePosition(0.5f, 10, 20, 90, false, true);
+        // Créer un effet visuel d'erreur sans affecter le mouvement continu
+        
+        // Obtenir le composant CharacterCard parent
+        CharacterCard card = GetComponent<CharacterCard>();
+        if (card != null && card.characterImage != null)
+        {
+            Color originalColor = card.characterImage.color;
+            Sequence errorSeq = DOTween.Sequence();
+            
+            // Ajouter une légère animation de mise à l'échelle (pulsation) qui n'affecte pas le mouvement
+            Vector3 originalScale = transform.localScale;
+            Vector3 pulseScale = originalScale * 1.1f; // Légèrement plus grand
+            
+            errorSeq.Append(transform.DOScale(pulseScale, 0.1f))
+                   .Append(transform.DOScale(originalScale, 0.1f))
+                   .Append(transform.DOScale(pulseScale, 0.1f))
+                   .Append(transform.DOScale(originalScale, 0.1f));
+                   
+            // Clignotement rouge pour indiquer l'erreur
+            errorSeq.Join(card.characterImage.DOColor(new Color(1f, 0.5f, 0.5f, 1f), 0.1f))
+                   .Append(card.characterImage.DOColor(originalColor, 0.1f))
+                   .Append(card.characterImage.DOColor(new Color(1f, 0.5f, 0.5f, 1f), 0.1f))
+                   .Append(card.characterImage.DOColor(originalColor, 0.1f));
+                   
+            // S'assurer que tout s'exécute sans interférer avec les autres animations
+            errorSeq.SetUpdate(true);
+        }
     }
 
     public void PlayShuffleAnimation(Vector2 targetPosition)

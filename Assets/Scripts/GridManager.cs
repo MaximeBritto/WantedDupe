@@ -402,8 +402,7 @@ public class GridManager : MonoBehaviour
     private void ApplyStateSpecificDimensions(GridState state)
     {
         // Si l'état est lié à Aligned ou Columns (moving ou non), utiliser les dimensions en dur
-        if (state == GridState.AlignedMoving || state == GridState.ColumnsMoving ||
-            state == GridState.Aligned || state == GridState.Columns)
+        if (state == GridState.AlignedMoving || state == GridState.ColumnsMoving)
         {
             playAreaWidth = FIXED_PLAY_AREA_WIDTH;
             playAreaHeight = FIXED_PLAY_AREA_HEIGHT;
@@ -778,6 +777,14 @@ public class GridManager : MonoBehaviour
 
     public void StopAllCardMovements()
     {
+        // Si l'utilisateur vient de cliquer sur une mauvaise carte, ne pas arrêter les mouvements
+        if (GameManager.Instance != null && GameManager.Instance.justClickedWrongCard)
+        {
+            // Simplement retourner sans rien faire pour maintenir le mouvement des cartes
+            return;
+        }
+        
+        // Sinon, arrêter tous les mouvements comme d'habitude
         foreach (var tween in activeTweens)
         {
             tween?.Kill();
@@ -787,8 +794,15 @@ public class GridManager : MonoBehaviour
         {
             if (card != null)
             {
-                card.GetComponent<RectTransform>().DOKill();
-                card.transform.DOKill();
+                RectTransform rectTransform = card.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                    rectTransform.DOKill();
+                }
+                if (card.transform != null)
+                {
+                    card.transform.DOKill();
+                }
             }
         }
     }
