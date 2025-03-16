@@ -43,6 +43,7 @@ public class UIManager : MonoBehaviour
     public float rouletteScale = 1.2f;
     public float wantedImageScale = 0.6f;
     public bool isRouletteRunning = false;
+    private bool gridManagerRouletteActive = false;
 
     [Header("Game Board")]
     public RectTransform gameBoard;
@@ -192,16 +193,43 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // Méthode appelée par GridManager quand sa roulette démarre
+    public void OnGridManagerRouletteStarted()
+    {
+        gridManagerRouletteActive = true;
+        Debug.Log("UIManager notifié: GridManager roulette démarrée");
+    }
+    
+    // Méthode appelée par GridManager quand sa roulette se termine
+    public void OnGridManagerRouletteEnded()
+    {
+        gridManagerRouletteActive = false;
+        Debug.Log("UIManager notifié: GridManager roulette terminée");
+    }
+
     private void UpdateWantedCharacter(CharacterCard character)
     {
-        if (isRouletteRunning) return;
+        // Si une roulette est déjà en cours, ne pas en démarrer une nouvelle
+        if (isRouletteRunning)
+        {
+            Debug.LogWarning("UIManager: une roulette est déjà en cours - Ignorée");
+            return;
+        }
+        
+        Debug.Log("UIManager: Démarrage de la roulette UI avec le sprite: " + character.characterSprite.name);
         StartCoroutine(WantedRouletteEffect(character));
     }
 
     private IEnumerator WantedRouletteEffect(CharacterCard finalCharacter)
     {
-            GameManager.Instance.PauseGame();
-
+        // Vérifier à nouveau si une roulette est déjà active
+        if (isRouletteRunning)
+        {
+            Debug.LogWarning("UIManager: WantedRouletteEffect annulé - une roulette est déjà active");
+            yield break;
+        }
+            
+        GameManager.Instance.PauseGame();
         isRouletteRunning = true;
         
         // Désactiver temporairement la grille pour éviter un pattern en arrière-plan
@@ -260,17 +288,152 @@ public class UIManager : MonoBehaviour
                    .Join(wantedImageRect.DOSizeDelta(finalImageSize, 0.5f));
         yield return endSequence.WaitForCompletion();
 
-        // Réactiver la grille et lancer l'animation d'entrée des cartes
+        // Réactiver la grille et s'assurer que toutes les cartes sont positionnées mais invisibles
         gridCanvas.gameObject.SetActive(true);
+        
+        // Attendre un court délai pour s'assurer que la grille est complètement réactivée
+        yield return new WaitForSeconds(0.1f);
         
         GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
+            Debug.Log("UIManager: Préparation des cartes après roulette");
+            
+            // Forcer l'arrangement des cartes
+            gridManager.ArrangeCardsBasedOnState();
+            
+            // Cacher toutes les cartes pendant qu'elles sont positionnées
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null)
+                {
+                    card.gameObject.SetActive(true);
+                    card.transform.localScale = Vector3.zero;
+                }
+            }
+            
+            // Identifier le pattern actuel
+            string patternType = gridManager.CurrentState.ToString();
+            Debug.Log($"UIManager: Pattern détecté: {patternType}");
+            
+            // Traitement spécial pour certains patterns qui posent problème
+            float delayBeforeAnimation = 0.3f;
+            
+            if (patternType.Contains("Column"))
+            {
+                Debug.Log("UIManager: Traitement spécial pour pattern Columns");
+                delayBeforeAnimation = 0.5f;
+                
+                // Forcer un second positionnement pour les colonnes
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+                
+                // Forcer un dernier positionnement
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+            }
+            else if (patternType.Contains("Circular"))
+            {
+                Debug.Log("UIManager: Traitement spécial pour pattern CircularAligned");
+                delayBeforeAnimation = 0.5f;
+                
+                // Forcer un second positionnement
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+                
+                // Forcer un dernier positionnement
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+            }
+            else if (patternType.Contains("Pulsing"))
+            {
+                Debug.Log("UIManager: Traitement spécial pour pattern Pulsing");
+                delayBeforeAnimation = 0.7f;
+                
+                // Forcer une seconde fois l'arrangement pour les patterns complexes
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+                
+                // Attendre encore pour s'assurer que tout est bien positionné
+                yield return new WaitForSeconds(0.2f);
+                gridManager.ArrangeCardsBasedOnState();
+            }
+            
+            // Pour tous les patterns, un délai final avant de montrer les cartes
+            yield return new WaitForSeconds(delayBeforeAnimation);
+            
+            // Animer l'entrée des cartes maintenant que tout est correctement positionné
+            Debug.Log("UIManager: Animation des cartes après positionnement");
             gridManager.AnimateCardsEntry();
+            
+            // Ajouter une solution de secours pour s'assurer que les cartes sont visibles
+            StartCoroutine(ForceShowCardsBackup(gridManager, 0.5f));
         }
         
         GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
+        Debug.Log("UIManager: Fin de la roulette UI");
+    }
+    
+    // Méthode de secours qui force l'affichage des cartes après un délai
+    private IEnumerator ForceShowCardsBackup(GridManager gridManager, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        // Si les cartes ne sont toujours pas visibles, les forcer à l'être
+        if (gridManager != null)
+        {
+            bool anyInvisibleCards = false;
+            bool anyInvalidScale = false;
+            
+            Debug.Log("SOLUTION DE SECOURS: Vérification des cartes...");
+            
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null)
+                {
+                    // Vérifier si la carte est invisible
+                    if (!card.gameObject.activeSelf)
+                    {
+                        anyInvisibleCards = true;
+                        card.gameObject.SetActive(true);
+                        Debug.Log($"Carte {card.name} forcée à être active");
+                    }
+                    
+                    // Vérifier si la carte a une échelle incorrecte
+                    if (Vector3.Distance(card.transform.localScale, Vector3.one) > 0.01f)
+                    {
+                        anyInvalidScale = true;
+                        Debug.Log($"Carte {card.name} avait une échelle incorrecte: {card.transform.localScale}");
+                        
+                        // Arrêter toute animation en cours sur cette carte
+                        DOTween.Kill(card.transform);
+                        
+                        // Forcer l'échelle à exactement 1
+                        card.transform.localScale = Vector3.one;
+                    }
+                }
+            }
+            
+            if (anyInvisibleCards || anyInvalidScale)
+            {
+                Debug.LogWarning("SOLUTION DE SECOURS APPLIQUÉE: Des problèmes de visibilité ou d'échelle des cartes ont été corrigés");
+                
+                // Tenter de réactiver la grille si elle était désactivée
+                if (!gridCanvas.gameObject.activeSelf)
+                {
+                    gridCanvas.gameObject.SetActive(true);
+                    Debug.LogWarning("SOLUTION DE SECOURS: Le canvas de la grille a été réactivé");
+                }
+                
+                // S'assurer que les cartes sont correctement positionnées
+                gridManager.ArrangeCardsBasedOnState();
+            }
+            else
+            {
+                Debug.Log("SOLUTION DE SECOURS: Toutes les cartes sont correctement visibles et à l'échelle 1");
+            }
+        }
     }
 
     public void OnGameStart()

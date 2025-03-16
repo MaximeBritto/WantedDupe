@@ -51,6 +51,9 @@ public class GameManager : MonoBehaviour
     [Header("Ads")]
     private AdMobAdsScript adMobAdsScript;
     private int gameCount = 0;  // Compteur de parties
+    
+    // Flag pour éviter les sélections multiples de wanted pendant une roulette
+    private bool isSelectingNewWanted = false;
 
     private System.Random random;
     private bool isPaused = false;
@@ -223,9 +226,36 @@ public class GameManager : MonoBehaviour
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
+        // Empêcher les appels multiples pendant une roulette
+        if (isSelectingNewWanted)
+        {
+            Debug.LogWarning("SelectNewWantedCharacter déjà en cours - Ignoré");
+            return;
+        }
+        
+        // Vérifier que le personnage n'est pas déjà le wanted
+        if (wantedCharacter == character)
+        {
+            Debug.LogWarning("GameManager: Tentative de sélectionner le même wanted character - Ignorée");
+            return;
+        }
+        
+        isSelectingNewWanted = true;
+        
         AudioManager.Instance?.PlayWantedSelection();
         wantedCharacter = character;
+        
+        // Notifier les abonnés du changement (déclenche la roulette UI)
         onNewWantedCharacter.Invoke(character);
+        
+        // Réinitialiser le flag après un court délai pour éviter les appels multiples
+        StartCoroutine(ResetSelectingNewWantedFlag());
+    }
+    
+    private IEnumerator ResetSelectingNewWantedFlag()
+    {
+        yield return new WaitForSeconds(0.5f);
+        isSelectingNewWanted = false;
     }
 
     public void AddScore()
@@ -237,8 +267,6 @@ public class GameManager : MonoBehaviour
         if (currentComboCount >= maxComboMultiplier)
         {
             // Ne pas réinitialiser le combo ici, le ComboSlider s'en chargera
-            // currentComboCount = 0;
-            // Le score sera incrémenté progressivement par le ComboSlider
         }
         
         // Mettre à jour le slider
@@ -248,11 +276,28 @@ public class GameManager : MonoBehaviour
         internalScore += scorePerCorrectClick;
         
         timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
+        
+        // Vérifier si une sélection de wanted est déjà en cours
+        if (isSelectingNewWanted)
+        {
+            Debug.LogWarning("AddScore: Sélection de wanted déjà en cours - Création d'un nouveau wanted ignorée");
+            return;
+        }
+        
+        // Rechercher le GridManager une seule fois
         var gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
-            PauseGame();
-            gridManager.CreateNewWanted();
+            // Vérifier que le GridManager n'a pas déjà une roulette active
+            if (!gridManager.IsRouletteActive)
+            {
+                PauseGame();
+                gridManager.CreateNewWanted();
+            }
+            else
+            {
+                Debug.LogWarning("GameManager: GridManager a déjà une roulette active - Création d'un nouveau wanted ignorée");
+            }
         }
     }
 

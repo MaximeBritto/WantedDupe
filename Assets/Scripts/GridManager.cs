@@ -49,6 +49,8 @@ public class GridManager : MonoBehaviour
     private bool isTransitioningDifficulty = false;
     private bool isRouletteActive = false;
 
+    private bool isCardAnimationRunning = false;
+
     public enum GridState
     {
         Aligned,
@@ -84,6 +86,7 @@ public class GridManager : MonoBehaviour
     public DifficultyLevel[] difficultyLevels;
     [SerializeField] private DifficultyLevel currentLevel;
     [SerializeField] private GridState currentState;
+    public GridState CurrentState { get { return currentState; } }
 
     [Header("Layout Settings")]
     public float cardSpacing = 100f;
@@ -108,10 +111,18 @@ public class GridManager : MonoBehaviour
     private Queue<GridState> lastUsedPatterns = new Queue<GridState>();
     private const int PATTERN_HISTORY_SIZE = 3; // Nombre de derniers patterns à mémoriser
 
+    // Propriété publique pour indiquer si une roulette GridManager est active
+    public bool IsRouletteActive { get { return isRouletteActive; } }
+
     private void Start()
     {
         // Utiliser une lambda pour appeler InitializeGrid avec le paramètre par défaut
-        GameManager.Instance.onGameStart.AddListener(() => InitializeGrid());
+        GameManager.Instance.onGameStart.AddListener(() => {
+            // Au démarrage du jeu, initialiser les cartes, les arranger et les animer
+            InitializeGrid();
+            Debug.Log("Jeu démarré - Grille initialisée");
+        });
+        
         GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
 
         if (difficultyLevels == null || difficultyLevels.Length == 0)
@@ -206,6 +217,7 @@ public class GridManager : MonoBehaviour
         Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : gridContainer;
 
         int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
+        Debug.Log($"Initialisation d'une grille avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
 
         // Choix du sprite pour le wanted
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
@@ -273,16 +285,23 @@ public class GridManager : MonoBehaviour
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
         FilterCardsByColor(wantedCard);
         
-        // Ne arrange les cartes que si shouldArrangeCards est true
-        if (shouldArrangeCards)
-        {
-            ArrangeCardsBasedOnState();
-        }
-
         // Masquer toutes les cartes pour préparer l'animation d'entrée
         foreach (var c in cards)
         {
-            c.gameObject.SetActive(false);
+            // Garder l'état de la carte mais réduire l'échelle à zéro
+            c.gameObject.SetActive(true);
+            c.transform.localScale = Vector3.zero;
+        }
+        
+        // Si demandé, arranger et animer les cartes
+        if (shouldArrangeCards)
+        {
+            ArrangeCardsBasedOnStateWithoutAnimation();
+            AnimateCardsEntry();
+        }
+        else
+        {
+            Debug.Log("Les cartes sont initialisées mais pas arrangées/animées (à faire plus tard)");
         }
     }
 
@@ -337,38 +356,195 @@ public class GridManager : MonoBehaviour
 
     public void AnimateCardsEntry()
     {
-        // Ne pas animer l'entrée des cartes si une roulette est en cours
-        if (isRouletteActive)
+        // Vérifier si une animation est déjà en cours
+        if (isCardAnimationRunning)
         {
-            Debug.LogWarning("Animation d'entrée des cartes annulée - roulette en cours");
-            return;
+            Debug.LogWarning("Animation d'entrée des cartes déjà en cours - Mais on force quand même");
+            // On continue quand même pour être sûr
         }
         
-        // Lance l'animation d'entrée de toutes les cartes simultanément
+        // On permet l'animation même si roulette active
+        if (isRouletteActive)
+        {
+            Debug.Log("Animation d'entrée des cartes pendant une roulette active - AUTORISÉE");
+        }
+        
+        // S'assurer que les cartes sont correctement positionnées avant d'animer
+        ArrangeCardsBasedOnStateWithoutAnimation();
+        
+        isCardAnimationRunning = true;
+        Debug.Log("Animation d'entrée des cartes démarrée");
+        
+        // Stocker l'état actuel pour savoir s'il faut démarrer un mouvement après
+        GridState stateAfterAnimation = currentState;
+        bool needsMovementAfterAnimation = IsMovementState(stateAfterAnimation);
+        
+        // S'assurer que toutes les cartes sont à l'échelle zéro au début
         foreach (var card in cards)
         {
             if (card == null) continue;
+            
+            // Arrêter toutes les animations en cours sur cette carte
+            DOTween.Kill(card.transform);
+            
+            // Activer la carte mais avec une échelle zéro
             card.gameObject.SetActive(true);
             card.transform.localScale = Vector3.zero;
-            card.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
         }
         
-        // Vérifier à nouveau si une roulette est en cours avant d'arranger les cartes
-        DOVirtual.DelayedCall(0.3f, () =>
+        Debug.Log($"Toutes les cartes sont prêtes pour l'animation d'entrée - Échelle zéro");
+        
+        // Force l'activation et l'animation des cartes
+        int animationDelay = 0;
+        int cardCount = cards.Count;
+        foreach (var card in cards)
         {
-            if (!isRouletteActive && !isTransitioningDifficulty)
+            if (card == null) continue;
+            
+            // Délai PLUS COURT entre chaque carte pour que l'animation se termine plus vite
+            float delay = animationDelay * 0.01f; // Réduit à 0.01 pour une animation plus rapide
+            
+            // Animer la carte depuis échelle zéro vers l'échelle 1
+            card.transform.DOScale(Vector3.one, 0.25f) // Animation plus rapide (0.25s)
+                .SetDelay(delay)
+                .SetEase(Ease.OutBack)
+                .OnComplete(() => {
+                    // S'assurer que l'échelle est exactement 1 après l'animation
+                    if (card != null)
+                    {
+                        card.transform.localScale = Vector3.one;
+                    }
+                });
+            
+            animationDelay++;
+        }
+        
+        // Calculer la durée totale de l'animation pour toutes les cartes
+        float totalAnimationDuration = 0.25f + (cardCount * 0.01f) + 0.1f; // Ajout d'une marge de 0.1s
+        
+        Debug.Log($"Animation démarrée pour {cardCount} cartes - Durée totale estimée: {totalAnimationDuration}s");
+        
+        // Marquer la fin de l'animation après le délai calculé
+        DOVirtual.DelayedCall(totalAnimationDuration, () => {
+            // S'assurer que toutes les cartes ont la bonne échelle
+            int fixedCards = 0;
+            foreach (var card in cards)
             {
-                ArrangeCardsBasedOnState();
+                if (card != null)
+                {
+                    // Si l'échelle n'est pas exactement 1, la corriger
+                    if (card.transform.localScale != Vector3.one)
+                    {
+                        card.transform.localScale = Vector3.one;
+                        fixedCards++;
+                    }
+                }
+            }
+            
+            if (fixedCards > 0)
+            {
+                Debug.Log($"Animation terminée - {fixedCards} cartes ont eu leur échelle ajustée à 1");
             }
             else
             {
-                Debug.LogWarning("Arrangement des cartes après entrée annulé - roulette ou transition en cours");
+                Debug.Log("Animation terminée - Toutes les cartes sont correctement à l'échelle 1");
+            }
+            
+            isCardAnimationRunning = false;
+            
+            // Si l'état requiert un mouvement, le démarrer maintenant que l'animation est terminée
+            if (needsMovementAfterAnimation)
+            {
+                Debug.Log($"Animation terminée - Démarrage des mouvements pour l'état: {stateAfterAnimation}");
+                StartMovementBasedOnState(stateAfterAnimation);
             }
         });
+    }
+    
+    // Nouvelle méthode pour vérifier si un état nécessite un mouvement
+    private bool IsMovementState(GridState state)
+    {
+        return state == GridState.SlowMoving || 
+               state == GridState.FastMoving || 
+               state == GridState.AlignedMoving || 
+               state == GridState.ColumnsMoving || 
+               state == GridState.CircularAlignedMoving || 
+               state == GridState.PulsingMoving;
+    }
+    
+    // Nouvelle méthode pour démarrer les mouvements après l'animation
+    private void StartMovementBasedOnState(GridState state)
+    {
+        // Ne démarrer le mouvement que si aucune roulette n'est active
+        if (isRouletteActive || isTransitioningDifficulty || UIManager.Instance.isRouletteRunning)
+        {
+            Debug.LogWarning("Mouvement reporté - une roulette est active");
+            
+            // Programmer une nouvelle tentative après un délai
+            DOVirtual.DelayedCall(0.5f, () => {
+                if (!isRouletteActive && !isTransitioningDifficulty && !UIManager.Instance.isRouletteRunning)
+                {
+                    StartMovementBasedOnState(state);
+                }
+            });
+            return;
+        }
+        
+        switch (state)
+        {
+            case GridState.SlowMoving:
+                Debug.Log("Démarrage du mouvement lent après animation");
+                foreach (var card in cards)
+                {
+                    if (card == null) continue;
+                    StartContinuousCardMovement(card, currentLevel.moveSpeed);
+                }
+                break;
+                
+            case GridState.FastMoving:
+                Debug.Log("Démarrage du mouvement rapide après animation");
+                foreach (var card in cards)
+                {
+                    if (card == null) continue;
+                    StartContinuousCardMovement(card, currentLevel.moveSpeed * 1.5f);
+                }
+                break;
+                
+            case GridState.AlignedMoving:
+                Debug.Log("Démarrage du mouvement aligné après animation");
+                StartAlignedMovement();
+                break;
+                
+            case GridState.ColumnsMoving:
+                Debug.Log("Démarrage du mouvement en colonnes après animation");
+                StartColumnsMovement();
+                break;
+                
+            case GridState.CircularAlignedMoving:
+                Debug.Log("Démarrage du mouvement circulaire après animation");
+                StartCircularMovement();
+                break;
+                
+            case GridState.PulsingMoving:
+                Debug.Log("Démarrage du mouvement pulsant après animation");
+                // Ajouter un délai supplémentaire avant de démarrer le pulsing
+                DOVirtual.DelayedCall(0.5f, () => {
+                    Debug.Log("Démarrage effectif du mouvement pulsant après délai supplémentaire");
+                    StartPulsingMovement();
+                });
+                break;
+        }
     }
 
     public void CreateNewWanted()
     {
+        // Si déjà en mode roulette, ne rien faire pour éviter une double initialisation
+        if (isRouletteActive)
+        {
+            Debug.LogWarning("Tentative de démarrer CreateNewWanted alors qu'une roulette est déjà active!");
+            return;
+        }
+        
         StartCoroutine(HideCardsAndStartRoulette());
     }
 
@@ -382,31 +558,32 @@ public class GridManager : MonoBehaviour
                 card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
             }
         }
+        
+        // Attendre que les cartes disparaissent complètement
         yield return new WaitForSeconds(0.5f);
-        StartCoroutine(RouletteEffect());
+        
+        // Démarrer la roulette après que toutes les cartes aient disparu
+        Debug.Log("Toutes les cartes ont disparu, lancement de la roulette GridManager");
+        StartCoroutine(PrepareNewCards());
     }
 
-    private IEnumerator RouletteEffect()
+    private IEnumerator PrepareNewCards()
     {
+        // Marquer le début de la roulette
         isRouletteActive = true;
-        Debug.Log("Début de l'effet roulette");
+        Debug.Log("Début de la préparation des nouvelles cartes");
         
-        // Arrêter tout mouvement de cartes existant
-        StopAllCardMovements();
-        
+        // Attendre le délai après succès
         yield return new WaitForSeconds(delayAfterSuccess);
 
         // On met à jour la difficulté avant d'initialiser la grille
-        // Mais on ne démarre pas de nouvelles animations pour l'instant
         isTransitioningDifficulty = true;
         UpdateDifficultyLevel();
         
-        // On désactive temporairement l'arrangement automatique des cartes
-        bool shouldArrangeCards = false;
-        InitializeGrid(shouldArrangeCards);
+        // Créer les cartes mais les garder cachées
+        InitializeGrid(false);
 
         // Recherche le nouveau wanted par la propriété characterName
-        // Utiliser la méthode de validation pour s'assurer qu'il y a exactement un wanted
         ValidateWantedCard();
         
         if (wantedCard == null)
@@ -416,33 +593,49 @@ public class GridManager : MonoBehaviour
             isTransitioningDifficulty = false;
             yield break;
         }
+        
+        // Vérifier que le wantedCard a un sprite
+        if (wantedCard.characterSprite == null)
+        {
+            Debug.LogError("Le wantedCard n'a pas de sprite!");
+            wantedCard.Initialize("Wanted", GameManager.Instance.GetRandomSprite());
+        }
+        
         wantedCard.transform.SetAsLastSibling();
+        
+        // Vérifier que toutes les cartes sont bien créées et initialisées
+        foreach (var card in cards)
+        {
+            if (card == null || card.characterSprite == null)
+            {
+                Debug.LogWarning("Carte mal initialisée détectée, correction...");
+                if (card != null && card.characterSprite == null)
+                {
+                    // Réinitialiser la carte avec un sprite valide
+                    card.Initialize(card.characterName, GameManager.Instance.GetRandomSprite());
+                }
+            }
+            
+            // S'assurer que les cartes sont actives mais avec une échelle zéro
+            if (card != null)
+            {
+                card.gameObject.SetActive(true);
+                card.transform.localScale = Vector3.zero; // Prêt pour l'animation plus tard
+            }
+        }
+        
+        // Positionner explicitement les cartes pendant qu'elles sont encore cachées (à échelle zéro)
+        ArrangeCardsBasedOnStateWithoutAnimation();
+        Debug.Log($"Cartes positionnées - État: {currentState}, Nombre de cartes: {cards.Count}");
+        
+        // Informer GameManager du nouveau wanted (cela déclenchera la roulette UI)
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
-
-        // Attendre que la roulette soit complètement terminée
-        yield return new WaitForSeconds(1.0f); // Augmenter le délai pour plus de sécurité
         
-        // La roulette est maintenant terminée, on peut continuer
+        // Attendre que la roulette UI se termine avant de montrer les cartes
+        // Les cartes seront animées par UIManager quand sa roulette sera finie
         isTransitioningDifficulty = false;
-        
-        try
-        {
-            // Maintenant on peut arranger les cartes selon le pattern
-            ArrangeCardsBasedOnState();
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Erreur lors de l'arrangement des cartes: {e.Message}");
-            // En cas d'erreur, assurer un état valide
-            ResetGame();
-        }
-        
-        // Attendre que toutes les animations de déplacement soient terminées
-        yield return new WaitForSeconds(0.6f);
-        
-        // Marquer la fin de la roulette seulement après toutes les animations
         isRouletteActive = false;
-        Debug.Log("Fin de l'effet roulette");
+        Debug.Log("Fin de la préparation des nouvelles cartes");
     }
 
     private GridState GetNextPattern(GridState[] possibleStates)
@@ -539,14 +732,22 @@ public class GridManager : MonoBehaviour
         Debug.Log("Fin de la transition de difficulté");
     }
 
-    private void ArrangeCardsBasedOnState()
+    public void ArrangeCardsBasedOnState()
     {
-        // Ne pas arranger les cartes si une roulette est en cours
-        if (isRouletteActive)
+        // Méthode publique qui expose l'arrangement des cartes
+        ArrangeCardsBasedOnStateWithoutAnimation();
+    }
+
+    // Nouvelle méthode pour arranger les cartes sans animation
+    private void ArrangeCardsBasedOnStateWithoutAnimation()
+    {
+        // Même avec une roulette active, on permet l'arrangement des cartes pour UIManager
+        if (isRouletteActive && !isTransitioningDifficulty)
         {
-            Debug.LogWarning("Tentative d'arranger les cartes pendant une roulette - IGNORÉE");
-            return;
+            Debug.Log("Arrangement des cartes pendant une roulette active - AUTORISÉ pour l'UIManager");
         }
+        
+        Debug.Log("Début de l'arrangement des cartes - État: " + currentState);
         
         StopAllCardMovements();
         ShuffleCards();
@@ -554,49 +755,239 @@ public class GridManager : MonoBehaviour
         // Appliquer les dimensions temporaires selon le mode
         ApplyStateSpecificDimensions(currentState);
         
-        DOVirtual.DelayedCall(0.1f, () =>
+        // Positionner les cartes en fonction de l'état actuel sans animation
+        switch (currentState)
         {
-            // Vérifier à nouveau si une roulette a commencé entre-temps
-            if (isRouletteActive)
+            case GridState.Aligned:
+                Debug.Log("Arrangeant les cartes en ligne");
+                ArrangeCardsInLine();
+                break;
+            case GridState.Columns:
+                Debug.Log("Arrangeant les cartes en colonnes");
+                ArrangeCardsInColumns();
+                break;
+            case GridState.CircularAligned:
+                Debug.Log("Arrangeant les cartes en cercles");
+                ArrangeCardsInCircles();
+                break;
+            case GridState.Static:
+                Debug.Log("Arrangeant les cartes aléatoirement (statique)");
+                ArrangeCardsRandomly(false);
+                break;
+            case GridState.SlowMoving:
+            case GridState.FastMoving:
+                Debug.Log("Arrangeant les cartes aléatoirement (sans démarrer le mouvement)");
+                ArrangeCardsRandomly(false); // Ne pas démarrer le mouvement tout de suite
+                break;
+            case GridState.AlignedMoving:
+                Debug.Log("Positionnement pour mouvement aligné (sans démarrer le mouvement)");
+                PositionCardsForAlignedMovement(); // Nouvelle méthode sans démarrer le mouvement
+                break;
+            case GridState.ColumnsMoving:
+                Debug.Log("Positionnement pour mouvement en colonnes (sans démarrer le mouvement)");
+                PositionCardsForColumnsMovement(); // Nouvelle méthode sans démarrer le mouvement
+                break;
+            case GridState.CircularAlignedMoving:
+                Debug.Log("Positionnement pour mouvement circulaire (sans démarrer le mouvement)");
+                PositionCardsForCircularMovement(); // Nouvelle méthode sans démarrer le mouvement
+                break;
+            case GridState.PulsingMoving:
+                Debug.Log("Positionnement pour mouvement pulsant (sans démarrer le mouvement)");
+                ArrangeCardsRandomly(false); // Positionner aléatoirement sans démarrer le mouvement
+                break;
+        }
+        
+        // Activer les cartes si elles ne sont pas actives
+        foreach (var card in cards)
+        {
+            if (card != null && !card.gameObject.activeSelf)
             {
-                Debug.LogWarning("Animation des cartes annulée - roulette en cours");
-                return;
+                card.gameObject.SetActive(true);
             }
+        }
+        
+        Debug.Log($"Fin de l'arrangement des cartes - {cards.Count} cartes positionnées");
+    }
+
+    private void ArrangeCardsInLine()
+    {
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f;
+        int maxColumnsAllowed = Mathf.FloorToInt(availableWidth / horizontalSpacing);
+        int cardsPerRow = Mathf.Min(totalCards, maxColumnsAllowed);
+        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
+        float dynamicHorizontalSpacing = (cardsPerRow > 1) ? availableWidth / (cardsPerRow - 1) : 0;
+        float startX = -availableWidth / 2;
+        float startY = (rows - 1) * verticalSpacing / 2;
+
+        for (int i = 0; i < totalCards; i++)
+        {
+            int row = i / cardsPerRow;
+            int col = i % cardsPerRow;
+            float xPos = startX + col * dynamicHorizontalSpacing;
+            float yPos = startY - row * verticalSpacing;
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
             
-            switch (currentState)
+            // Pour l'étape de positionnement initial, placer directement sans animation
+            if (isCardAnimationRunning || isRouletteActive)
             {
-                case GridState.Aligned:
-                    ArrangeCardsInLine();
-                    break;
-                case GridState.Columns:
-                    ArrangeCardsInColumns();
-                    break;
-                case GridState.CircularAligned:
-                    ArrangeCardsInCircles();
-                    break;
-                case GridState.Static:
-                    ArrangeCardsRandomly(false);
-                    break;
-                case GridState.SlowMoving:
-                    ArrangeCardsRandomly(true, currentLevel.moveSpeed);
-                    break;
-                case GridState.FastMoving:
-                    ArrangeCardsRandomly(true, currentLevel.moveSpeed * 1.5f);
-                    break;
-                case GridState.AlignedMoving:
-                    StartAlignedMovement();
-                    break;
-                case GridState.ColumnsMoving:
-                    StartColumnsMovement();
-                    break;
-                case GridState.CircularAlignedMoving:
-                    StartCircularMovement();
-                    break;
-                case GridState.PulsingMoving:
-                    StartPulsingMovement();
-                    break;
+                // Positionnement direct sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
             }
-        });
+            else
+            {
+                // Animation normale
+                Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
+                    .SetEase(Ease.OutBack);
+                activeTweens.Add(tween);
+            }
+        }
+    }
+    
+    // Nouvelles méthodes pour positionner les cartes sans démarrer le mouvement
+    private void PositionCardsForAlignedMovement()
+    {
+        StopAllCardMovements();
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f;
+        int cardsPerRow = Mathf.FloorToInt(availableWidth / horizontalSpacing);
+        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
+        float startX = -availableWidth / 2;
+        float startY = (rows * verticalSpacing) / 2;
+
+        for (int i = 0; i < totalCards; i++)
+        {
+            int row = i / cardsPerRow;
+            int col = i % cardsPerRow;
+            bool moveRight = row % 2 == 0;
+            float rowOffset = 0;
+            if (row == rows - 1 && totalCards % cardsPerRow != 0)
+            {
+                int cardsInLastRow = totalCards % cardsPerRow;
+                rowOffset = (cardsPerRow - cardsInLastRow) * horizontalSpacing / 2;
+            }
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            float yPos = startY - (row * verticalSpacing);
+            float xPos = moveRight
+                ? startX + (col * horizontalSpacing) + rowOffset
+                : -startX - (col * horizontalSpacing) - rowOffset;
+                
+            // Positionnement direct sans animation
+            rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+        }
+    }
+    
+    private void PositionCardsForColumnsMovement()
+    {
+        StopAllCardMovements();
+        int totalCards = cards.Count;
+        int columns = currentLevel.fixedColumns;
+        if (totalCards < columns)
+            columns = totalCards;
+        
+        // Distribuer les cartes uniformément entre les colonnes
+        int[] cardsPerColumn = new int[columns];
+        int remainingCards = totalCards;
+        
+        // Distribuer d'abord le minimum de cartes par colonne
+        int minCardsPerColumn = remainingCards / columns;
+        for (int i = 0; i < columns; i++)
+        {
+            cardsPerColumn[i] = minCardsPerColumn;
+            remainingCards -= minCardsPerColumn;
+        }
+        
+        // Distribuer les cartes restantes une par une
+        for (int i = 0; i < remainingCards; i++)
+        {
+            cardsPerColumn[i]++;
+        }
+        
+        float usableHeight = playAreaHeight * 0.9f;
+        float highestY = usableHeight / 2f;
+        
+        // Calculer la largeur totale occupée par toutes les colonnes
+        float totalWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
+        float startX = -totalWidth / 2f;
+        
+        int currentCardIndex = 0;
+        
+        // Positionner les cartes dans chaque colonne
+        for (int col = 0; col < columns; col++)
+        {
+            float xPos = startX + col * currentLevel.fixedColumnSpacing;
+            int cardsInThisColumn = cardsPerColumn[col];
+            
+            // Calculer l'espace total occupé par cette colonne
+            float columnHeight = (cardsInThisColumn - 1) * verticalSpacing;
+            float columnStartY = columnHeight / 2f;
+            
+            for (int row = 0; row < cardsInThisColumn; row++)
+            {
+                if (currentCardIndex >= cards.Count) break;
+                
+                RectTransform rectTransform = cards[currentCardIndex].GetComponent<RectTransform>();
+                float initialY = columnStartY - (row * verticalSpacing);
+                
+                // Positionnement direct sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, initialY);
+                currentCardIndex++;
+            }
+        }
+    }
+    
+    private void PositionCardsForCircularMovement()
+    {
+        StopAllCardMovements();
+        int totalCards = cards.Count;
+        float centerX = 0;
+        float centerY = 0;
+        float cardSize = horizontalSpacing * 0.8f;
+        float extraSpacing = 20f;
+        float baseRadius = cardSize * 2 + extraSpacing;
+        int numCircles = Mathf.CeilToInt((float)totalCards / maxCardsPerCircle);
+        float maxAllowedRadius = Mathf.Min(playAreaWidth, playAreaHeight) * 0.45f;
+        float radiusIncrement = (numCircles > 1)
+            ? (maxAllowedRadius - baseRadius) / (numCircles - 1)
+            : 0;
+            
+        List<int> cardsPerCircle = new List<int>();
+        int remainingCards = totalCards;
+        for (int i = 0; i < numCircles; i++)
+        {
+            int cardsInThisCircle = Mathf.CeilToInt((float)remainingCards / (numCircles - i));
+            cardsPerCircle.Add(cardsInThisCircle);
+            remainingCards -= cardsInThisCircle;
+        }
+        
+        // Positionner les cartes dans chaque cercle sans animation
+        int cardIndex = 0;
+        for (int circle = 0; circle < cardsPerCircle.Count; circle++)
+        {
+            float radius = baseRadius + (circle * radiusIncrement);
+            int cardsInCircle = cardsPerCircle[circle];
+            for (int i = 0; i < cardsInCircle; i++)
+            {
+                if (cardIndex >= cards.Count) break;
+                
+                float angle = (i * 2 * Mathf.PI) / cardsInCircle;
+                float xPos = centerX + radius * Mathf.Cos(angle);
+                float yPos = centerY + radius * Mathf.Sin(angle);
+                
+                RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
+                
+                // Positionnement DIRECT sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+                
+                // Log de débogage pour les premières et dernières cartes de chaque cercle
+                if (i == 0 || i == cardsInCircle - 1)
+                {
+                    Debug.Log($"Carte {cardIndex} positionnée à x={xPos}, y={yPos}, angle={angle * Mathf.Rad2Deg}°");
+                }
+                
+                cardIndex++;
+            }
+        }
     }
 
     // Nouvelle méthode pour gérer les dimensions selon l'état
@@ -627,30 +1018,6 @@ public class GridManager : MonoBehaviour
 
     #region Arrangements & Mouvements
 
-    private void ArrangeCardsInLine()
-    {
-        int totalCards = cards.Count;
-        float availableWidth = playAreaWidth * 0.9f;
-        int maxColumnsAllowed = Mathf.FloorToInt(availableWidth / horizontalSpacing);
-        int cardsPerRow = Mathf.Min(totalCards, maxColumnsAllowed);
-        int rows = Mathf.CeilToInt((float)totalCards / cardsPerRow);
-        float dynamicHorizontalSpacing = (cardsPerRow > 1) ? availableWidth / (cardsPerRow - 1) : 0;
-        float startX = -availableWidth / 2;
-        float startY = (rows - 1) * verticalSpacing / 2;
-
-        for (int i = 0; i < totalCards; i++)
-        {
-            int row = i / cardsPerRow;
-            int col = i % cardsPerRow;
-            float xPos = startX + col * dynamicHorizontalSpacing;
-            float yPos = startY - row * verticalSpacing;
-            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
-            Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
-                .SetEase(Ease.OutBack);
-            activeTweens.Add(tween);
-        }
-    }
-
     private void ArrangeCardsInColumns()
     {
         int totalCards = cards.Count;
@@ -662,20 +1029,23 @@ public class GridManager : MonoBehaviour
         // Calculer la largeur totale occupée par toutes les colonnes
         float totalWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
         
-        // Obtenir les dimensions et la position du GameBoard
-        Vector2 boardCenter = Vector2.zero;
-        if (gameBoardRect != null)
-        {
-            boardCenter = new Vector2(
-                gameBoardRect.rect.width / 2f,
-                gameBoardRect.rect.height / 2f
-            );
-        }
-        
         // Calculer le point de départ pour que les colonnes soient centrées
         float startX = -totalWidth / 2f;
         float startY = (playAreaHeight / 2f) - verticalSpacing;
 
+        // IMPORTANT: Arrêter toutes les animations précédentes
+        foreach (var card in cards)
+        {
+            if (card != null)
+            {
+                DOTween.Kill(card.transform);
+                DOTween.Kill(card.GetComponent<RectTransform>());
+            }
+        }
+        
+        Debug.Log($"Position colonnes: startX={startX}, startY={startY}, colonnes={columns}, cartes par colonne={cardsPerColumn}");
+        
+        // Positionnement DIRECT des cartes sans animation
         int currentCard = 0;
         for (int col = 0; col < columns && currentCard < totalCards; col++)
         {
@@ -684,12 +1054,24 @@ public class GridManager : MonoBehaviour
             {
                 RectTransform rectTransform = cards[currentCard].GetComponent<RectTransform>();
                 float yPos = startY - row * verticalSpacing;
-                Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
-                    .SetEase(Ease.OutBack);
-                activeTweens.Add(tween);
+                
+                // Positionnement DIRECT, sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+                
+                // Log pour le débogage
+                if (col == 0 || col == columns-1)
+                {
+                    Debug.Log($"Carte {currentCard} positionnée à x={xPos}, y={yPos}");
+                }
+                
                 currentCard++;
             }
         }
+        
+        // Force la mise à jour du canvas pour s'assurer que tout est correctement dessiné
+        Canvas.ForceUpdateCanvases();
+        
+        Debug.Log($"Positionnement en colonnes terminé - {totalCards} cartes placées en {columns} colonnes");
     }
 
     private void ArrangeCardsRandomly(bool moving, float speed = 2f)
@@ -697,19 +1079,22 @@ public class GridManager : MonoBehaviour
         StopAllCardMovements();
         foreach (var card in cards)
         {
+            if (card == null) continue;
+            
             RectTransform rectTransform = card.GetComponent<RectTransform>();
             Vector2 randomPos = GetValidCardPosition();
+            
+            // Positionnement direct sans animation
+            rectTransform.anchoredPosition = randomPos;
+            
             if (moving)
             {
+                Debug.Log($"Démarrage du mouvement continu pour la carte {card.name} avec vitesse {speed}");
                 StartContinuousCardMovement(card, speed);
             }
-            else
-            {
-                Tween tween = rectTransform.DOAnchorPos(randomPos, 0.5f)
-                    .SetEase(Ease.OutBack);
-                activeTweens.Add(tween);
-            }
         }
+        
+        Debug.Log($"ArrangeCardsRandomly terminé - {cards.Count} cartes arrangées, moving={moving}, speed={speed}");
     }
 
     private void StartAlignedMovement()
@@ -884,6 +1269,8 @@ public class GridManager : MonoBehaviour
         List<int> cardsPerCircle = new List<int>();
         int remainingCards = totalCards;
         int currentCircle = 0;
+        
+        // Calculer combien de cartes par cercle
         while (remainingCards > 0 && baseRadius + (currentCircle * radiusIncrement) <= maxRadius)
         {
             float currentRadius = baseRadius + (currentCircle * radiusIncrement);
@@ -898,7 +1285,55 @@ public class GridManager : MonoBehaviour
         {
             cardsPerCircle[cardsPerCircle.Count - 1] += remainingCards;
         }
-        PlaceCardsInCircles(cardsPerCircle, baseRadius, radiusIncrement, centerX, centerY, false);
+        
+        Debug.Log($"CircularAligned: {totalCards} cartes, {cardsPerCircle.Count} cercles");
+        
+        // Arrêter toutes les animations en cours
+        foreach (var card in cards)
+        {
+            if (card != null)
+            {
+                DOTween.Kill(card.transform);
+                DOTween.Kill(card.GetComponent<RectTransform>());
+            }
+        }
+        
+        // POSITIONNEMENT DIRECT (sans animation) des cartes en cercles
+        int cardIndex = 0;
+        for (int circle = 0; circle < cardsPerCircle.Count; circle++)
+        {
+            float radius = baseRadius + (circle * radiusIncrement);
+            int cardsInCircle = cardsPerCircle[circle];
+            
+            Debug.Log($"Cercle {circle}: rayon={radius}, {cardsInCircle} cartes");
+            
+            for (int i = 0; i < cardsInCircle; i++)
+            {
+                if (cardIndex >= cards.Count) break;
+                
+                float angle = (i * 2 * Mathf.PI) / cardsInCircle;
+                float xPos = centerX + radius * Mathf.Cos(angle);
+                float yPos = centerY + radius * Mathf.Sin(angle);
+                
+                RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
+                
+                // Positionnement DIRECT sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+                
+                // Log de débogage pour les premières et dernières cartes de chaque cercle
+                if (i == 0 || i == cardsInCircle - 1)
+                {
+                    Debug.Log($"Carte {cardIndex} positionnée à x={xPos}, y={yPos}, angle={angle * Mathf.Rad2Deg}°");
+                }
+                
+                cardIndex++;
+            }
+        }
+        
+        // Force la mise à jour du canvas pour s'assurer que tout est correctement dessiné
+        Canvas.ForceUpdateCanvases();
+        
+        Debug.Log($"Positionnement circulaire terminé - {totalCards} cartes placées");
     }
 
     private void StartCircularMovement()
@@ -966,39 +1401,165 @@ public class GridManager : MonoBehaviour
 
     private void StartPulsingMovement()
     {
+        // Arrêter d'abord tous les mouvements en cours
         StopAllCardMovements();
+        
+        Debug.Log("Démarrage du mouvement pulsant avec " + cards.Count + " cartes");
+        
+        // IMPORTANT: Si une roulette est active ou en transition, NE PAS démarrer l'animation directement
+        if (isRouletteActive || isTransitioningDifficulty || UIManager.Instance.isRouletteRunning)
+        {
+            Debug.LogWarning("⚠️ Mouvement pulsant REPORTÉ - roulette ou transition en cours ⚠️");
+            
+            // Positionner d'abord les cartes sans animation de pulsation
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                
+                // Activer la carte et s'assurer qu'elle est visible sans animation
+                card.gameObject.SetActive(true);
+                card.transform.localScale = Vector3.one;
+            }
+            
+            // Programmer une vérification ultérieure avec un délai plus long (2 secondes)
+            DOVirtual.DelayedCall(2.0f, () => {
+                if (!isRouletteActive && !isTransitioningDifficulty && !UIManager.Instance.isRouletteRunning)
+                {
+                    // La roulette est terminée, on peut démarrer l'animation avec sécurité
+                    Debug.Log("Démarrage retardé des animations de pulsation après vérification");
+                    StartPulsingAnimations();
+                }
+                else
+                {
+                    // Encore en roulette, reprogrammer une autre vérification
+                    Debug.LogWarning("Mouvement pulsant toujours reporté - nouvel essai programmé");
+                    DOVirtual.DelayedCall(1.5f, () => {
+                        if (!isRouletteActive && !isTransitioningDifficulty && !UIManager.Instance.isRouletteRunning)
+                        {
+                            StartPulsingAnimations();
+                        }
+                        else
+                        {
+                            // Troisième tentative
+                            DOVirtual.DelayedCall(1.5f, () => {
+                                if (!isRouletteActive && !isTransitioningDifficulty && !UIManager.Instance.isRouletteRunning)
+                                {
+                                    StartPulsingAnimations();
+                                }
+                                else {
+                                    Debug.LogError("Impossible de démarrer les animations de pulsation après 3 tentatives - forçage");
+                                    // Force le démarrage des animations même si les conditions ne sont pas idéales
+                                    StartPulsingAnimations(true);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            return;
+        }
+        
+        // Si aucune roulette n'est active, démarrer directement les animations
+        StartPulsingAnimations();
+    }
+    
+    // Méthode séparée pour démarrer les animations de pulsation
+    // Le paramètre forceStart permet de démarrer même si une roulette est active (usage exceptionnel)
+    private void StartPulsingAnimations(bool forceStart = false)
+    {
+        // Vérifier à nouveau que nous ne sommes pas en roulette, sauf si forceStart est true
+        if (!forceStart && (isRouletteActive || isTransitioningDifficulty || UIManager.Instance.isRouletteRunning))
+        {
+            Debug.LogWarning("StartPulsingAnimations: Annulé car une roulette est active");
+            return;
+        }
+        
+        Debug.Log("Démarrage des animations de pulsation" + (forceStart ? " (FORCÉ)" : ""));
+        
+        // Vérifier d'abord que toutes les cartes sont positionnées correctement
         foreach (var card in cards)
         {
-            StartContinuousCardMovement(card, currentLevel.moveSpeed);
+            if (card == null) continue;
+            
+            // Arrêter les animations précédentes
+            DOTween.Kill(card.transform);
+            DOTween.Kill(card.GetComponent<RectTransform>());
+            
+            // Activer la carte et s'assurer qu'elle est visible
+            card.gameObject.SetActive(true);
+            card.transform.localScale = Vector3.one;
+        }
+        
+        // Ensuite démarrer le mouvement continu pour chaque carte
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            
+            // Démarrer le mouvement avec une vitesse ajustée
+            float moveSpeed = currentLevel.moveSpeed;
+            StartContinuousCardMovement(card, moveSpeed);
+            
+            // N'ajouter l'effet de pulsation qu'aux cartes qui ne sont pas le wanted
             if (card != wantedCard)
             {
-                card.transform.localScale = Vector3.one;
-                float randomTargetScale = Random.Range(0.8f, 3f);
-                float randomDuration = Random.Range(0.5f, 1.5f);
-                float randomDelay = Random.Range(0f, 1f);
-                Tween pulseTween = card.transform.DOScale(randomTargetScale, randomDuration)
-                    .SetLoops(-1, LoopType.Yoyo)
-                    .SetEase(Ease.InOutSine)
-                    .SetDelay(randomDelay);
-                activeTweens.Add(pulseTween);
+                // Attendre un délai aléatoire avant de démarrer la pulsation
+                float randomDelay = Random.Range(0.3f, 0.6f);
+                DOVirtual.DelayedCall(randomDelay, () => {
+                    // Vérifier à nouveau que la carte est toujours valide
+                    if (card != null && card.gameObject.activeSelf)
+                    {
+                        float randomTargetScale = Random.Range(0.8f, 1.5f); // Taille max augmentée à 1.5
+                        float randomDuration = Random.Range(0.8f, 1.5f);
+                        
+                        // Créer une animation de pulsation plus douce
+                        Tween pulseTween = card.transform.DOScale(randomTargetScale, randomDuration)
+                            .SetLoops(-1, LoopType.Yoyo)
+                            .SetEase(Ease.InOutSine);
+                        
+                        activeTweens.Add(pulseTween);
+                    }
+                });
             }
         }
     }
 
     private void StartContinuousCardMovement(CharacterCard card, float speed)
     {
+        if (card == null) return;
+        
         RectTransform rectTransform = card.GetComponent<RectTransform>();
-        rectTransform.DOKill();
-
+        if (rectTransform == null) return;
+        
+        // Arrêter toutes les animations en cours sur cette carte
+        DOTween.Kill(rectTransform);
+        
+        // Log de débogage pour suivre le mouvement
+        Debug.Log($"Démarrage du mouvement continu pour {card.name} avec vitesse {speed}");
+        
+        // Fonction récursive pour créer un mouvement continu
         void StartNewMovement()
         {
+            // Vérifier que la carte existe toujours
+            if (card == null || rectTransform == null || !card.gameObject.activeInHierarchy)
+                return;
+            
+            // Obtenir une nouvelle position cible valide
             Vector2 targetPos = GetValidCardPosition();
+            
+            // Calculer la distance pour ajuster la durée
             float distance = Vector2.Distance(rectTransform.anchoredPosition, targetPos);
             float adjustedDuration = distance / (speed * 100f);
-            rectTransform.DOAnchorPos(targetPos, adjustedDuration)
+            
+            // Commencer le mouvement avec suivi
+            Tween moveTween = rectTransform.DOAnchorPos(targetPos, adjustedDuration)
                 .SetEase(Ease.InOutQuad)
                 .OnComplete(StartNewMovement);
+            
+            // Ajouter le tween à la liste des tweens actifs
+            activeTweens.Add(moveTween);
         }
+        
+        // Démarrer le premier mouvement
         StartNewMovement();
     }
 
@@ -1059,7 +1620,7 @@ public class GridManager : MonoBehaviour
         {
             Debug.Log("Mise à jour de la difficulté suite à un changement de score");
             UpdateDifficultyLevel();
-            ArrangeCardsBasedOnState();
+            ArrangeCardsBasedOnStateWithoutAnimation();
         }
         else
         {
