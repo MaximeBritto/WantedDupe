@@ -45,6 +45,10 @@ public class GridManager : MonoBehaviour
     // Variable qui détermine si le mode Only One Color est actif
     private bool onlyOneColorActive = false;
 
+    // Variable pour suivre si une transition est en cours
+    private bool isTransitioningDifficulty = false;
+    private bool isRouletteActive = false;
+
     public enum GridState
     {
         Aligned,
@@ -100,9 +104,14 @@ public class GridManager : MonoBehaviour
     // Liste des tweens actifs
     private List<Tween> activeTweens = new List<Tween>();
 
+    [Header("Pattern History Settings")]
+    private Queue<GridState> lastUsedPatterns = new Queue<GridState>();
+    private const int PATTERN_HISTORY_SIZE = 3; // Nombre de derniers patterns à mémoriser
+
     private void Start()
     {
-        GameManager.Instance.onGameStart.AddListener(InitializeGrid);
+        // Utiliser une lambda pour appeler InitializeGrid avec le paramètre par défaut
+        GameManager.Instance.onGameStart.AddListener(() => InitializeGrid());
         GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
 
         if (difficultyLevels == null || difficultyLevels.Length == 0)
@@ -175,17 +184,12 @@ public class GridManager : MonoBehaviour
         );
     }
 
-    public void InitializeGrid()
+    public void InitializeGrid(bool shouldArrangeCards = true)
     {
         AdjustForMobileIfNeeded();
         UpdateDifficultyLevel();
 
-        // Détermine aléatoirement si le mode Only One Color sera actif
-        onlyOneColorActive = currentLevel.onlyOneColor && (Random.value < 0.5f);
-
-        // Détermine la transform parent à utiliser (GameBoard si disponible, sinon gridContainer)
-        Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : gridContainer;
-
+        // IMPORTANT: S'assurer que toutes les cartes existantes sont détruites correctement
         // Détruire les cartes existantes
         foreach (var existingCard in cards)
         {
@@ -193,6 +197,13 @@ public class GridManager : MonoBehaviour
                 Destroy(existingCard.gameObject);
         }
         cards.Clear();
+        wantedCard = null; // Réinitialiser explicitement le wanted
+
+        // Détermine aléatoirement si le mode Only One Color sera actif
+        onlyOneColorActive = currentLevel.onlyOneColor && (Random.value < 0.5f);
+
+        // Détermine la transform parent à utiliser (GameBoard si disponible, sinon gridContainer)
+        Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : gridContainer;
 
         int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
 
@@ -215,7 +226,6 @@ public class GridManager : MonoBehaviour
 
         // Création du wanted
         GameObject wantedObj = Instantiate(characterCardPrefab, parentTransform);
-        // On n'utilise plus le nom du GameObject pour identifier le wanted (on utilisera la propriété characterName)
         CharacterCard wantedCardComponent = wantedObj.GetComponent<CharacterCard>();
         RectTransform wantedRt = wantedObj.GetComponent<RectTransform>();
         wantedRt.anchoredPosition = GetValidCardPosition();
@@ -251,6 +261,9 @@ public class GridManager : MonoBehaviour
             cards.Add(cardComponent);
         }
 
+        // Vérification de sécurité pour s'assurer qu'il y a exactement un wanted
+        ValidateWantedCard();
+
         if (wantedCard == null)
         {
             Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
@@ -259,7 +272,12 @@ public class GridManager : MonoBehaviour
 
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
         FilterCardsByColor(wantedCard);
-        ArrangeCardsBasedOnState();
+        
+        // Ne arrange les cartes que si shouldArrangeCards est true
+        if (shouldArrangeCards)
+        {
+            ArrangeCardsBasedOnState();
+        }
 
         // Masquer toutes les cartes pour préparer l'animation d'entrée
         foreach (var c in cards)
@@ -268,8 +286,64 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    // Nouvelle méthode pour valider/réparer le wanted card
+    private void ValidateWantedCard()
+    {
+        // Vérifier combien de cartes sont marquées comme "Wanted"
+        var wantedCards = cards.Where(c => c != null && c.characterName == "Wanted").ToList();
+        
+        if (wantedCards.Count == 0)
+        {
+            // Aucun wanted trouvé, créer un nouveau
+            Debug.LogWarning("Aucune carte wanted trouvée. Création d'une nouvelle carte wanted.");
+            
+            if (cards.Count > 0)
+            {
+                // Convertir la première carte en wanted
+                cards[0].Initialize("Wanted", GameManager.Instance.GetRandomSprite());
+                wantedCard = cards[0];
+            }
+            else
+            {
+                // Situation critique, aucune carte disponible
+                Debug.LogError("Aucune carte disponible pour créer un wanted!");
+            }
+        }
+        else if (wantedCards.Count > 1)
+        {
+            // Trop de wanted, garder seulement le premier
+            Debug.LogWarning($"Trouvé {wantedCards.Count} cartes wanted. Conservation uniquement de la première.");
+            
+            wantedCard = wantedCards[0];
+            
+            // Renommer les autres cartes wanted
+            for (int i = 1; i < wantedCards.Count; i++)
+            {
+                Sprite randomSprite;
+                do
+                {
+                    randomSprite = GameManager.Instance.GetRandomSprite();
+                } while (randomSprite == wantedCard.characterSprite);
+                
+                wantedCards[i].Initialize("Card_" + (cards.Count + i), randomSprite);
+            }
+        }
+        else
+        {
+            // Un seul wanted trouvé, c'est normal
+            wantedCard = wantedCards[0];
+        }
+    }
+
     public void AnimateCardsEntry()
     {
+        // Ne pas animer l'entrée des cartes si une roulette est en cours
+        if (isRouletteActive)
+        {
+            Debug.LogWarning("Animation d'entrée des cartes annulée - roulette en cours");
+            return;
+        }
+        
         // Lance l'animation d'entrée de toutes les cartes simultanément
         foreach (var card in cards)
         {
@@ -278,10 +352,18 @@ public class GridManager : MonoBehaviour
             card.transform.localScale = Vector3.zero;
             card.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack);
         }
-        // Après 0.3s, réarranger les cartes
+        
+        // Vérifier à nouveau si une roulette est en cours avant d'arranger les cartes
         DOVirtual.DelayedCall(0.3f, () =>
         {
-            ArrangeCardsBasedOnState();
+            if (!isRouletteActive && !isTransitioningDifficulty)
+            {
+                ArrangeCardsBasedOnState();
+            }
+            else
+            {
+                Debug.LogWarning("Arrangement des cartes après entrée annulé - roulette ou transition en cours");
+            }
         });
     }
 
@@ -306,26 +388,102 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator RouletteEffect()
     {
+        isRouletteActive = true;
+        Debug.Log("Début de l'effet roulette");
+        
+        // Arrêter tout mouvement de cartes existant
+        StopAllCardMovements();
         
         yield return new WaitForSeconds(delayAfterSuccess);
 
-        UpdateDifficultyOnScoreChange();
-        InitializeGrid();
+        // On met à jour la difficulté avant d'initialiser la grille
+        // Mais on ne démarre pas de nouvelles animations pour l'instant
+        isTransitioningDifficulty = true;
+        UpdateDifficultyLevel();
+        
+        // On désactive temporairement l'arrangement automatique des cartes
+        bool shouldArrangeCards = false;
+        InitializeGrid(shouldArrangeCards);
 
         // Recherche le nouveau wanted par la propriété characterName
-        wantedCard = cards.FirstOrDefault(c => c.characterName == "Wanted");
+        // Utiliser la méthode de validation pour s'assurer qu'il y a exactement un wanted
+        ValidateWantedCard();
+        
         if (wantedCard == null)
         {
             Debug.LogError("Pas de wanted trouvé après InitializeGrid!");
+            isRouletteActive = false;
+            isTransitioningDifficulty = false;
             yield break;
         }
         wantedCard.transform.SetAsLastSibling();
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
 
-        // IMPORTANT : on ne lance plus AnimateCardsEntry() ici.
-        // On attend simplement un court délai, puis on reprend le jeu.
-        yield return new WaitForSeconds(0.5f);
+        // Attendre que la roulette soit complètement terminée
+        yield return new WaitForSeconds(1.0f); // Augmenter le délai pour plus de sécurité
+        
+        // La roulette est maintenant terminée, on peut continuer
+        isTransitioningDifficulty = false;
+        
+        try
+        {
+            // Maintenant on peut arranger les cartes selon le pattern
+            ArrangeCardsBasedOnState();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Erreur lors de l'arrangement des cartes: {e.Message}");
+            // En cas d'erreur, assurer un état valide
+            ResetGame();
+        }
+        
+        // Attendre que toutes les animations de déplacement soient terminées
+        yield return new WaitForSeconds(0.6f);
+        
+        // Marquer la fin de la roulette seulement après toutes les animations
+        isRouletteActive = false;
+        Debug.Log("Fin de l'effet roulette");
+    }
 
+    private GridState GetNextPattern(GridState[] possibleStates)
+    {
+        if (possibleStates == null || possibleStates.Length == 0)
+            return GridState.Static;
+
+        // Si on n'a qu'un seul pattern possible, on le renvoie directement
+        if (possibleStates.Length == 1)
+            return possibleStates[0];
+
+        // Créer une liste de patterns possibles en excluant les patterns récemment utilisés
+        List<GridState> availablePatterns = new List<GridState>(possibleStates);
+        
+        // Retirer les patterns récemment utilisés de la liste des patterns disponibles
+        foreach (var recentPattern in lastUsedPatterns)
+        {
+            availablePatterns.Remove(recentPattern);
+        }
+
+        // Si tous les patterns ont été utilisés récemment, on prend n'importe lequel sauf le dernier utilisé
+        if (availablePatterns.Count == 0)
+        {
+            availablePatterns.AddRange(possibleStates);
+            if (lastUsedPatterns.Count > 0)
+            {
+                availablePatterns.Remove(lastUsedPatterns.Peek());
+            }
+        }
+
+        // Sélectionner un pattern aléatoire parmi les disponibles
+        GridState selectedPattern = availablePatterns[Random.Range(0, availablePatterns.Count)];
+
+        // Mettre à jour l'historique des patterns
+        lastUsedPatterns.Enqueue(selectedPattern);
+        if (lastUsedPatterns.Count > PATTERN_HISTORY_SIZE)
+        {
+            lastUsedPatterns.Dequeue();
+        }
+
+        return selectedPattern;
     }
 
     private void UpdateDifficultyLevel()
@@ -340,8 +498,24 @@ public class GridManager : MonoBehaviour
                 break;
             }
         }
+
+        bool levelChanged = (currentLevel != newLevel);
+        
+        // Si une roulette est en cours, ne pas marquer comme transition (c'est déjà géré)
+        if (levelChanged && !isRouletteActive)
+        {
+            isTransitioningDifficulty = true;
+            Debug.Log($"Transition de difficulté: {(currentLevel != null ? currentLevel.scoreThreshold : 0)} -> {newLevel.scoreThreshold}");
+        }
+        
+        // Si on change de niveau de difficulté, on réinitialise l'historique des patterns
+        if (levelChanged)
+        {
+            lastUsedPatterns.Clear();
+        }
+
         currentLevel = newLevel;
-        currentState = currentLevel.possibleStates[Random.Range(0, currentLevel.possibleStates.Length)];
+        currentState = GetNextPattern(currentLevel.possibleStates);
         
         // Appliquer les dimensions spécifiques à l'état actuel
         ApplyStateSpecificDimensions(currentState);
@@ -350,10 +524,30 @@ public class GridManager : MonoBehaviour
         {
             UIManager.Instance.UpdateDifficultyText(currentLevel.scoreThreshold, currentState);
         }
+        
+        // Marquer la fin de la transition après un court délai (si pas en roulette)
+        if (levelChanged && !isRouletteActive)
+        {
+            StartCoroutine(EndTransitionAfterDelay());
+        }
+    }
+    
+    private IEnumerator EndTransitionAfterDelay()
+    {
+        yield return new WaitForSeconds(0.5f);
+        isTransitioningDifficulty = false;
+        Debug.Log("Fin de la transition de difficulté");
     }
 
     private void ArrangeCardsBasedOnState()
     {
+        // Ne pas arranger les cartes si une roulette est en cours
+        if (isRouletteActive)
+        {
+            Debug.LogWarning("Tentative d'arranger les cartes pendant une roulette - IGNORÉE");
+            return;
+        }
+        
         StopAllCardMovements();
         ShuffleCards();
         
@@ -362,6 +556,13 @@ public class GridManager : MonoBehaviour
         
         DOVirtual.DelayedCall(0.1f, () =>
         {
+            // Vérifier à nouveau si une roulette a commencé entre-temps
+            if (isRouletteActive)
+            {
+                Debug.LogWarning("Animation des cartes annulée - roulette en cours");
+                return;
+            }
+            
             switch (currentState)
             {
                 case GridState.Aligned:
@@ -457,9 +658,23 @@ public class GridManager : MonoBehaviour
         if (totalCards < columns)
             columns = totalCards;
         int cardsPerColumn = Mathf.CeilToInt((float)totalCards / columns);
-        float totalColumnsWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
-        float startX = -totalColumnsWidth / 2f;
-        float startY = playAreaHeight / 2 - verticalSpacing;
+        
+        // Calculer la largeur totale occupée par toutes les colonnes
+        float totalWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
+        
+        // Obtenir les dimensions et la position du GameBoard
+        Vector2 boardCenter = Vector2.zero;
+        if (gameBoardRect != null)
+        {
+            boardCenter = new Vector2(
+                gameBoardRect.rect.width / 2f,
+                gameBoardRect.rect.height / 2f
+            );
+        }
+        
+        // Calculer le point de départ pour que les colonnes soient centrées
+        float startX = -totalWidth / 2f;
+        float startY = (playAreaHeight / 2f) - verticalSpacing;
 
         int currentCard = 0;
         for (int col = 0; col < columns && currentCard < totalCards; col++)
@@ -584,8 +799,20 @@ public class GridManager : MonoBehaviour
         
         float highestY = usableHeight / 2f;
         float lowestY = -highestY;
-        float totalColumnsWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
-        float startX = -totalColumnsWidth / 2f;
+        
+        // Obtenir les dimensions et la position du GameBoard
+        Vector2 boardCenter = Vector2.zero;
+        if (gameBoardRect != null)
+        {
+            boardCenter = new Vector2(
+                gameBoardRect.rect.width / 2f,
+                gameBoardRect.rect.height / 2f
+            );
+        }
+        
+        // Calculer la largeur totale occupée par toutes les colonnes
+        float totalWidth = (columns - 1) * currentLevel.fixedColumnSpacing;
+        float startX = -totalWidth / 2f;
 
         List<List<RectTransform>> columnsList = new List<List<RectTransform>>();
         int currentCardIndex = 0;
@@ -630,12 +857,12 @@ public class GridManager : MonoBehaviour
                         if (moveDown)
                         {
                             pos.y -= offset;
-                            if (pos.y < lowestY) pos.y = highestY;
+                            if (pos.y < -highestY) pos.y = highestY;
                         }
                         else
                         {
                             pos.y += offset;
-                            if (pos.y > highestY) pos.y = lowestY;
+                            if (pos.y > highestY) pos.y = -highestY;
                         }
                         rectTransform.anchoredPosition = pos;
                     }
@@ -825,9 +1052,27 @@ public class GridManager : MonoBehaviour
 
     private void UpdateDifficultyOnScoreChange()
     {
-        UpdateDifficultyLevel();
-        ArrangeCardsBasedOnState();
+        // Ne pas mettre à jour la difficulté si:
+        // 1. Une roulette est en cours
+        // 2. Une transition de difficulté est déjà en cours
+        if (!IsRouletteInProgress() && !isTransitioningDifficulty)
+        {
+            Debug.Log("Mise à jour de la difficulté suite à un changement de score");
+            UpdateDifficultyLevel();
+            ArrangeCardsBasedOnState();
+        }
+        else
+        {
+            Debug.Log($"Mise à jour de difficulté ignorée - Roulette: {IsRouletteInProgress()}, Transition: {isTransitioningDifficulty}");
+        }
+        
         FilterCardsByColor(wantedCard);
+    }
+
+    private bool IsRouletteInProgress()
+    {
+        // Utiliser la variable d'état au lieu de chercher les coroutines
+        return isRouletteActive;
     }
 
     private void FilterCardsByColor(CharacterCard wantedCard)
@@ -902,6 +1147,37 @@ public class GridManager : MonoBehaviour
             cards[i] = cards[randomIndex];
             cards[randomIndex] = temp;
         }
+    }
+
+    // Méthode d'urgence pour débloquer le jeu si nécessaire
+    public void ResetGame()
+    {
+        Debug.Log("🚨 RÉINITIALISATION D'URGENCE DU JEU 🚨");
+        
+        // Réinitialiser tous les états de contrôle
+        isRouletteActive = false;
+        isTransitioningDifficulty = false;
+        
+        StopAllCardMovements();
+        StopAllCoroutines();
+        
+        // Détruire toutes les cartes existantes
+        foreach (var existingCard in cards)
+        {
+            if (existingCard != null)
+                Destroy(existingCard.gameObject);
+        }
+        cards.Clear();
+        wantedCard = null;
+        
+        // Réinitialiser l'historique des patterns
+        lastUsedPatterns.Clear();
+        
+        // Réinitialiser le jeu
+        InitializeGrid(true);
+        AnimateCardsEntry();
+        
+        Debug.Log("Jeu réinitialisé avec succès.");
     }
     #endregion
 }

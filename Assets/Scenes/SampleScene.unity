@@ -3674,7 +3674,7 @@ MonoBehaviour:
     minCards: 4
     maxCards: 4
     moveSpeed: 1
-    possibleStates: 01000000
+    possibleStates: 0100000007000000
     fixedColumns: 2
     fixedColumnSpacing: 150
     onlyOneColor: 0
@@ -3682,7 +3682,7 @@ MonoBehaviour:
     minCards: 16
     maxCards: 16
     moveSpeed: 1
-    possibleStates: 01000000
+    possibleStates: 06000000
     fixedColumns: 4
     fixedColumnSpacing: 150
     onlyOneColor: 0
