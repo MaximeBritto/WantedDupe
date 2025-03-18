@@ -43,8 +43,6 @@ public class GameManager : MonoBehaviour
     public float displayedScore { get; private set; } = 0f;
     public float internalScore { get; private set; } = 0f;
     
-    public UnityEvent<float> onComboChanged = new UnityEvent<float>();
-
     // Indique si le joueur vient de cliquer sur une mauvaise carte
     public bool justClickedWrongCard { get; private set; } = false;
 
@@ -93,7 +91,6 @@ public class GameManager : MonoBehaviour
         internalScore = 0f;
         displayedScore = 0f;
         currentComboCount = 0;
-        onComboChanged.Invoke(0f);
         
         timeRemaining = roundDuration;
         isGameActive = true;
@@ -263,14 +260,9 @@ public class GameManager : MonoBehaviour
         // Ajouter au combo
         currentComboCount++;
         
-        // Si le combo atteint le maximum
-        if (currentComboCount >= maxComboMultiplier)
-        {
-            // Ne pas réinitialiser le combo ici, le ComboSlider s'en chargera
-        }
-        
-        // Mettre à jour le slider
-        onComboChanged.Invoke((float)currentComboCount / maxComboMultiplier);
+        // Incrémenter directement le score affiché
+        displayedScore += scorePerCorrectClick;
+        onScoreChanged.Invoke(displayedScore);
         
         // Le score réel continue d'augmenter de 1
         internalScore += scorePerCorrectClick;
@@ -305,7 +297,6 @@ public class GameManager : MonoBehaviour
     public void ResetCombo()
     {
         currentComboCount = 0;
-        onComboChanged.Invoke(0f);
     }
 
     public void ApplyTimePenalty()
@@ -354,12 +345,6 @@ public class GameManager : MonoBehaviour
     public void ResumeGame()
     {
         isPaused = false;
-    }
-
-    public void IncrementDisplayedScore()
-    {
-        displayedScore += 1;
-        onScoreChanged.Invoke(displayedScore);
     }
 
     // Nouvelle méthode pour continuer la partie après la rewarded ad

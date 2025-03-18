@@ -63,8 +63,6 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI difficultyText;
     public TextMeshProUGUI currentStateText;
 
-    public ComboSlider comboSlider;
-
     [Header("Background")]
     public BackgroundManager backgroundManager;
 
@@ -531,7 +529,7 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance.isGameActive)
         {
-            scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
+            scoreText.text = $"{GameManager.Instance.displayedScore}";
         }
     }
 
