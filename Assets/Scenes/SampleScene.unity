@@ -2983,8 +2983,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -321}
-  m_SizeDelta: {x: 360, y: 360}
+  m_AnchoredPosition: {x: 0.000020981, y: -545}
+  m_SizeDelta: {x: 514.3033, y: 514.3033}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &971522666
 MonoBehaviour:
@@ -5985,6 +5985,12 @@ MonoBehaviour:
   currentStateText: {fileID: 0}
   backgroundManager: {fileID: 0}
   continueButton: {fileID: 2120377566}
+  comboImages:
+  - {fileID: 1042055394}
+  - {fileID: 331478767}
+  - {fileID: 1836755437}
+  - {fileID: 1061336987}
+  - {fileID: 286760163}
 --- !u!4 &2031354612
 Transform:
   m_ObjectHideFlags: 0

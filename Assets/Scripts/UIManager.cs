@@ -1,8 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System.Collections;
 using DG.Tweening;
+using UnityEngine.Events;
+using System.Collections;
+using System.Collections.Generic;
 
 public class UIManager : MonoBehaviour
 {
@@ -68,6 +70,9 @@ public class UIManager : MonoBehaviour
 
     [Header("Continue Game")]
     public Button continueButton;  // Bouton pour regarder la pub et continuer
+
+    [Header("Combo Images")]
+    public Image[] comboImages;  // Référence aux 5 images de combo
 
     private Vector2 timerInitialPosition;
     private AdMobAdsScript adMobAdsScript;
@@ -142,6 +147,18 @@ public class UIManager : MonoBehaviour
                     adMobAdsScript.ShowRewardedAd();
                 }
             });
+        }
+
+        // Rendre toutes les images de combo invisibles au démarrage
+        if (comboImages != null)
+        {
+            foreach (Image comboImage in comboImages)
+            {
+                if (comboImage != null)
+                {
+                    comboImage.gameObject.SetActive(false);
+                }
+            }
         }
     }
 
@@ -529,7 +546,70 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance.isGameActive)
         {
-            scoreText.text = $"{GameManager.Instance.displayedScore}";
+            scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
+            
+            int scoreModulo = (int)GameManager.Instance.displayedScore % 5;
+            
+            // Modifier la condition pour que la disparition se fasse après l'apparition de la 5ème image
+            if (scoreModulo == 0 && GameManager.Instance.displayedScore > 0)
+            {
+                // D'abord, s'assurer que la 5ème image apparaît
+                if (comboImages != null && comboImages.Length >= 5)
+                {
+                    comboImages[4].gameObject.SetActive(true);
+                    comboImages[4].transform.localScale = Vector3.zero;
+                    
+                    // Animation d'apparition de la 5ème image
+                    comboImages[4].transform.DOScale(1.2f, 0.3f)
+                        .SetEase(Ease.OutBack)
+                        .OnComplete(() => {
+                            // Une fois que la 5ème image est apparue, attendre un peu puis tout faire disparaître
+                            StartCoroutine(DisappearAllImagesAfterDelay(0.5f));
+                        });
+                }
+                return;
+            }
+            
+            if (comboImages != null)
+            {
+                for (int i = 0; i < comboImages.Length; i++)
+                {
+                    if (comboImages[i] != null)
+                    {
+                        bool shouldBeActive = i < scoreModulo;
+                        
+                        if (shouldBeActive && !comboImages[i].gameObject.activeSelf)
+                        {
+                            comboImages[i].gameObject.SetActive(true);
+                            comboImages[i].transform.localScale = Vector3.zero;
+                            
+                            comboImages[i].transform.DOScale(1.2f, 0.3f)
+                                .SetEase(Ease.OutBack)
+                                .OnComplete(() => {
+                                    comboImages[i].transform.DOScale(1f, 0.15f).SetEase(Ease.InOutBack);
+                                });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private IEnumerator DisappearAllImagesAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        foreach (Image img in comboImages)
+        {
+            if (img != null)
+            {
+                img.transform.DOScale(0f, 0.3f)
+                    .SetEase(Ease.InBack)
+                    .OnComplete(() => {
+                        img.gameObject.SetActive(false);
+                        img.transform.localScale = Vector3.one;
+                    });
+            }
         }
     }
 
