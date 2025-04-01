@@ -74,6 +74,9 @@ public class UIManager : MonoBehaviour
     [Header("Combo Images")]
     public Image[] comboImages;  // Référence aux 5 images de combo
 
+    [Header("Score Display")]
+    public TextMeshProUGUI increScore;  // Nouveau texte pour afficher le score par 5
+
     private Vector2 timerInitialPosition;
     private AdMobAdsScript adMobAdsScript;
 
@@ -90,6 +93,12 @@ public class UIManager : MonoBehaviour
         gridCanvas.sortingOrder = 0;
         uiCanvas.sortingOrder = 1;
         overlayCanvas.sortingOrder = 2;
+
+        // Initialiser increScore à 0
+        if (increScore != null)
+        {
+            increScore.text = "0";
+        }
 
         DisableRaycastOnPanel(wantedPanel);
         DisableRaycastOnPanel(gameInfoPanel);
@@ -455,6 +464,26 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         gameOverPanel.SetActive(false);
+        
+        // Réinitialiser increScore à 0
+        if (increScore != null)
+        {
+            increScore.text = "0";
+        }
+
+        // Faire disparaître toutes les images de combo
+        if (comboImages != null)
+        {
+            foreach (Image img in comboImages)
+            {
+                if (img != null)
+                {
+                    img.gameObject.SetActive(false);
+                    img.transform.localScale = Vector3.one;
+                }
+            }
+        }
+
         if (SafeArea != null)
         {
             SafeArea.SetActive(true);
@@ -497,11 +526,10 @@ public class UIManager : MonoBehaviour
         
         if (GameManager.Instance != null)
         {
-            float finalScore = GameManager.Instance.displayedScore + GameManager.Instance.currentComboCount;
-            finalScoreText.text = $"Score : {finalScore}";
+            // Afficher le score tel quel, sans division
+            finalScoreText.text = $"Score : {GameManager.Instance.displayedScore}";
         }
 
-        // Activer le bouton continue
         if (continueButton != null)
         {
             continueButton.gameObject.SetActive(true);
@@ -545,26 +573,20 @@ public class UIManager : MonoBehaviour
     private void UpdateScoreText(float score)
     {
         if (GameManager.Instance.isGameActive)
-        {
-            scoreText.text = $"Score: {GameManager.Instance.displayedScore}";
-            
+        {            
             int scoreModulo = (int)GameManager.Instance.displayedScore % 5;
             
-            // Modifier la condition pour que la disparition se fasse après l'apparition de la 5ème image
             if (scoreModulo == 0 && GameManager.Instance.displayedScore > 0)
             {
-                // D'abord, s'assurer que la 5ème image apparaît
                 if (comboImages != null && comboImages.Length >= 5)
                 {
                     comboImages[4].gameObject.SetActive(true);
                     comboImages[4].transform.localScale = Vector3.zero;
                     
-                    // Animation d'apparition de la 5ème image
                     comboImages[4].transform.DOScale(1.2f, 0.3f)
                         .SetEase(Ease.OutBack)
                         .OnComplete(() => {
-                            // Une fois que la 5ème image est apparue, attendre un peu puis tout faire disparaître
-                            StartCoroutine(DisappearAllImagesAfterDelay(0.5f));
+                            StartCoroutine(DisappearAllImagesAndUpdateScore(0.5f));
                         });
                 }
                 return;
@@ -595,10 +617,11 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private IEnumerator DisappearAllImagesAfterDelay(float delay)
+    private IEnumerator DisappearAllImagesAndUpdateScore(float delay)
     {
         yield return new WaitForSeconds(delay);
         
+        // Animation de disparition des images
         foreach (Image img in comboImages)
         {
             if (img != null)
@@ -611,6 +634,20 @@ public class UIManager : MonoBehaviour
                     });
             }
         }
+
+        // Attendre que l'animation de disparition soit terminée
+        yield return new WaitForSeconds(0.3f);
+
+        // Mettre à jour et animer le increScore
+        int scoreBy5 = ((int)GameManager.Instance.displayedScore / 5) * 5;
+        increScore.text = scoreBy5.ToString();
+        
+        // Animation du score
+        increScore.transform.DOScale(1.2f, 0.3f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() => {
+                increScore.transform.DOScale(1f, 0.15f).SetEase(Ease.InOutBack);
+            });
     }
 
     private void OnDestroy()
