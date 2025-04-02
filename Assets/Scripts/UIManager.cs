@@ -70,6 +70,8 @@ public class UIManager : MonoBehaviour
 
     [Header("Continue Game")]
     public Button continueButton;  // Bouton pour regarder la pub et continuer
+    private bool hasUsedContinue = false;  // Flag pour suivre si le joueur a déjà utilisé le continue
+    private bool isNewGame = true;  // Flag pour suivre si c'est une nouvelle partie
 
     [Header("Combo Images")]
     public Image[] comboImages;  // Référence aux 5 images de combo
@@ -154,6 +156,7 @@ public class UIManager : MonoBehaviour
                 {
                     adMobAdsScript.LoadRewardedAd();
                     adMobAdsScript.ShowRewardedAd();
+                    HideContinueButton();  // Masquer le bouton après utilisation
                 }
             });
         }
@@ -530,14 +533,17 @@ public class UIManager : MonoBehaviour
             finalScoreText.text = $"Score : {GameManager.Instance.displayedScore}";
         }
 
+        // Afficher le bouton continue uniquement si c'est une nouvelle partie
         if (continueButton != null)
         {
-            continueButton.gameObject.SetActive(true);
+            continueButton.gameObject.SetActive(isNewGame);
         }
     }
 
     private void StartGame()
     {
+        isNewGame = true;  // Réinitialiser le flag de nouvelle partie
+        hasUsedContinue = false;  // Réinitialiser le flag d'utilisation du continue
         GameManager.Instance.StartGame();
     }
 
@@ -653,5 +659,15 @@ public class UIManager : MonoBehaviour
     private void OnDestroy()
     {
         DOTween.Kill("TimerShake");
+    }
+
+    private void HideContinueButton()
+    {
+        if (continueButton != null)
+        {
+            continueButton.gameObject.SetActive(false);
+            hasUsedContinue = true;
+            isNewGame = false;  // Indiquer que ce n'est plus une nouvelle partie
+        }
     }
 }
