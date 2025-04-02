@@ -594,6 +594,7 @@ public class UIManager : MonoBehaviour
                         .OnComplete(() => {
                             StartCoroutine(DisappearAllImagesAndUpdateScore(0.5f));
                         });
+                    AudioManager.Instance?.PlayComboSound();
                 }
                 return;
             }
@@ -616,6 +617,7 @@ public class UIManager : MonoBehaviour
                                 .OnComplete(() => {
                                     comboImages[i].transform.DOScale(1f, 0.15f).SetEase(Ease.InOutBack);
                                 });
+                            AudioManager.Instance?.PlayComboSound();
                         }
                     }
                 }
@@ -626,6 +628,9 @@ public class UIManager : MonoBehaviour
     private IEnumerator DisappearAllImagesAndUpdateScore(float delay)
     {
         yield return new WaitForSeconds(delay);
+        
+        // Jouer le son de disparition
+        AudioManager.Instance?.PlayComboDisappearSound();
         
         // Animation de disparition des images
         foreach (Image img in comboImages)
@@ -648,11 +653,21 @@ public class UIManager : MonoBehaviour
         int scoreBy5 = ((int)GameManager.Instance.displayedScore / 5) * 5;
         increScore.text = scoreBy5.ToString();
         
+        // Jouer le son d'augmentation du score
+        AudioManager.Instance?.PlayScoreIncreaseSound();
+        
         // Animation du score
-        increScore.transform.DOScale(1.2f, 0.3f)
+        increScore.transform.DOScale(1.5f, 0.3f)
             .SetEase(Ease.OutBack)
             .OnComplete(() => {
                 increScore.transform.DOScale(1f, 0.15f).SetEase(Ease.InOutBack);
+            });
+            
+        // Ajouter une rotation pour plus d'effet
+        increScore.transform.DORotate(new Vector3(0, 0, 15f), 0.15f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() => {
+                increScore.transform.DORotate(Vector3.zero, 0.15f).SetEase(Ease.InOutBack);
             });
     }
 

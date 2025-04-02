@@ -10,6 +10,9 @@ public class AudioManager : MonoBehaviour
     public AudioClip shuffleSound;
     public AudioClip playButtonSound;
     public AudioClip wantedSelectionSound;  // Nouveau son pour la sélection du wanted
+    public AudioClip comboSound;  // Nouveau son pour les images de combo
+    public AudioClip comboDisappearSound;  // Nouveau son pour la disparition des images de combo
+    public AudioClip scoreIncreaseSound;  // Nouveau son pour l'augmentation du score
     [Range(0f, 1f)]
     public float sfxVolume = 1f;  // Volume des effets sonores
     
@@ -144,6 +147,21 @@ public class AudioManager : MonoBehaviour
         {
             wantedSelectionSource.Stop();
         }
+    }
+
+    public void PlayComboSound()
+    {
+        PlaySound(comboSound);
+    }
+
+    public void PlayComboDisappearSound()
+    {
+        PlaySound(comboDisappearSound);
+    }
+
+    public void PlayScoreIncreaseSound()
+    {
+        PlaySound(scoreIncreaseSound);
     }
 
     private void PlaySound(AudioClip clip)
