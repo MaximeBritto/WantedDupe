@@ -259,6 +259,9 @@ public class UIManager : MonoBehaviour
         GameManager.Instance.PauseGame();
         isRouletteRunning = true;
         
+        // S'assurer que le gridCanvas est actif
+        bool wasGridActive = gridCanvas.gameObject.activeSelf;
+        
         // Désactiver temporairement la grille pour éviter un pattern en arrière-plan
         gridCanvas.gameObject.SetActive(false);
         
@@ -315,8 +318,12 @@ public class UIManager : MonoBehaviour
                    .Join(wantedImageRect.DOSizeDelta(finalImageSize, 0.5f));
         yield return endSequence.WaitForCompletion();
 
-        // Réactiver la grille et s'assurer que toutes les cartes sont positionnées mais invisibles
-        gridCanvas.gameObject.SetActive(true);
+        // IMPORTANT: S'assurer que le canvas de la grille est réactivé
+        if (!gridCanvas.gameObject.activeSelf)
+        {
+            Debug.Log("IMPORTANT: Réactivation du gridCanvas qui était inactif");
+            gridCanvas.gameObject.SetActive(true);
+        }
         
         // Attendre un court délai pour s'assurer que la grille est complètement réactivée
         yield return new WaitForSeconds(0.1f);
@@ -326,10 +333,22 @@ public class UIManager : MonoBehaviour
         {
             Debug.Log("UIManager: Préparation des cartes après roulette");
             
-            // Forcer l'arrangement des cartes
+            // VÉRIFICATION SUPPLÉMENTAIRE: S'assurer que le parent des cartes est actif
+            Transform parentTransform = gridManager.gameBoardTransform != null ? 
+                gridManager.gameBoardTransform : gridManager.transform;
+            if (!parentTransform.gameObject.activeSelf)
+            {
+                Debug.LogWarning("CORRECTION: Le parent des cartes était désactivé - Réactivation");
+                parentTransform.gameObject.SetActive(true);
+            }
+            
+            // IMPORTANT: Toujours arranger les cartes après la roulette
             gridManager.ArrangeCardsBasedOnState();
             
-            // Cacher toutes les cartes pendant qu'elles sont positionnées
+            // Log pour déboguer le nombre de cartes
+            Debug.Log($"Nombre de cartes à animer: {gridManager.cards.Count}");
+            
+            // S'assurer que toutes les cartes sont prêtes à être animées
             foreach (var card in gridManager.cards)
             {
                 if (card != null)
@@ -395,6 +414,10 @@ public class UIManager : MonoBehaviour
             
             // Ajouter une solution de secours pour s'assurer que les cartes sont visibles
             StartCoroutine(ForceShowCardsBackup(gridManager, 0.5f));
+        }
+        else
+        {
+            Debug.LogError("UIManager: GridManager introuvable après la roulette!");
         }
         
         GameManager.Instance.ResumeGame();

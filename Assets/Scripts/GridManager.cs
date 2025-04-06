@@ -282,8 +282,8 @@ public class GridManager : MonoBehaviour
             return;
         }
 
-            GameManager.Instance.SelectNewWantedCharacter(wantedCard);
-            FilterCardsByColor(wantedCard);
+        GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+        FilterCardsByColor(wantedCard);
         
         // Masquer toutes les cartes pour préparer l'animation d'entrée
         foreach (var c in cards)
@@ -293,15 +293,18 @@ public class GridManager : MonoBehaviour
             c.transform.localScale = Vector3.zero;
         }
         
-        // Si demandé, arranger et animer les cartes
+        // Toujours positionner les cartes selon le pattern actuel
+        ArrangeCardsBasedOnStateWithoutAnimation();
+        
+        // Si demandé, animer les cartes
         if (shouldArrangeCards)
         {
-            ArrangeCardsBasedOnStateWithoutAnimation();
             AnimateCardsEntry();
+            Debug.Log("Initialisation complète - Cartes arrangées et animées");
         }
         else
         {
-            Debug.Log("Les cartes sont initialisées mais pas arrangées/animées (à faire plus tard)");
+            Debug.Log("Initialisation complète - Cartes positionnées mais pas animées");
         }
     }
 
@@ -369,11 +372,26 @@ public class GridManager : MonoBehaviour
             Debug.Log("Animation d'entrée des cartes pendant une roulette active - AUTORISÉE");
         }
         
+        // VÉRIFICATION CRITIQUE: S'assurer que les cartes existent et sont correctement référencées
+        if (cards.Count == 0)
+        {
+            Debug.LogError("ERREUR CRITIQUE: Aucune carte n'existe lors de l'appel à AnimateCardsEntry!");
+            return;
+        }
+        
+        int nullCards = cards.Count(c => c == null);
+        if (nullCards > 0)
+        {
+            Debug.LogWarning($"ATTENTION: {nullCards} cartes nulles détectées sur {cards.Count} total");
+            // Nettoyage des références nulles
+            cards = cards.Where(c => c != null).ToList();
+        }
+        
         // S'assurer que les cartes sont correctement positionnées avant d'animer
         ArrangeCardsBasedOnStateWithoutAnimation();
         
         isCardAnimationRunning = true;
-        Debug.Log("Animation d'entrée des cartes démarrée");
+        Debug.Log($"Animation d'entrée démarrée pour {cards.Count} cartes");
         
         // Stocker l'état actuel pour savoir s'il faut démarrer un mouvement après
         GridState stateAfterAnimation = currentState;
@@ -428,10 +446,19 @@ public class GridManager : MonoBehaviour
         DOVirtual.DelayedCall(totalAnimationDuration, () => {
             // S'assurer que toutes les cartes ont la bonne échelle
             int fixedCards = 0;
+            int activatedCards = 0;
+            
             foreach (var card in cards)
             {
                 if (card != null)
                 {
+                    // Si la carte n'est pas active, l'activer
+                    if (!card.gameObject.activeSelf)
+                    {
+                        card.gameObject.SetActive(true);
+                        activatedCards++;
+                    }
+                    
                     // Si l'échelle n'est pas exactement 1, la corriger
                     if (card.transform.localScale != Vector3.one)
                     {
@@ -441,13 +468,13 @@ public class GridManager : MonoBehaviour
                 }
             }
             
-            if (fixedCards > 0)
+            if (fixedCards > 0 || activatedCards > 0)
             {
-                Debug.Log($"Animation terminée - {fixedCards} cartes ont eu leur échelle ajustée à 1");
+                Debug.Log($"Animation terminée - {fixedCards} cartes échelle ajustée, {activatedCards} cartes activées");
             }
             else
             {
-                Debug.Log("Animation terminée - Toutes les cartes sont correctement à l'échelle 1");
+                Debug.Log("Animation terminée - Toutes les cartes sont correctement à l'échelle 1 et actives");
             }
             
             isCardAnimationRunning = false;
@@ -457,10 +484,10 @@ public class GridManager : MonoBehaviour
             {
                 Debug.Log($"Animation terminée - Démarrage des mouvements pour l'état: {stateAfterAnimation}");
                 StartMovementBasedOnState(stateAfterAnimation);
-                    }
-                });
-        }
-    
+            }
+        });
+    }
+
     // Nouvelle méthode pour vérifier si un état nécessite un mouvement
     private bool IsMovementState(GridState state)
     {
@@ -550,10 +577,10 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator HideCardsAndStartRoulette()
     {
-        // Faire disparaître toutes les cartes sauf le wanted
+        // Faire disparaître toutes les cartes mais sans désactiver le parent
         foreach (var card in cards)
         {
-            if (card != null && card != wantedCard)
+            if (card != null)
             {
                 card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
             }
@@ -562,9 +589,11 @@ public class GridManager : MonoBehaviour
         // Attendre que les cartes disparaissent complètement
         yield return new WaitForSeconds(0.5f);
         
-        // Démarrer la roulette après que toutes les cartes aient disparu
-        Debug.Log("Toutes les cartes ont disparu, lancement de la roulette GridManager");
-        StartCoroutine(PrepareNewCards());
+        // Démarrer la roulette
+        Debug.Log("Lancement de la roulette GridManager");
+        
+        // Préparer les nouvelles cartes
+        yield return StartCoroutine(PrepareNewCards());
     }
 
     private IEnumerator PrepareNewCards()
@@ -580,8 +609,26 @@ public class GridManager : MonoBehaviour
         isTransitioningDifficulty = true;
         UpdateDifficultyLevel();
         
+        // S'assurer que le parent est actif
+        Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : transform;
+        if (!parentTransform.gameObject.activeSelf)
+        {
+            Debug.LogWarning("Parent des cartes désactivé - Réactivation");
+            parentTransform.gameObject.SetActive(true);
+        }
+        
         // Créer les cartes mais les garder cachées
         InitializeGrid(false);
+
+        // S'assurer que toutes les cartes sont initialement à échelle zéro
+        foreach (var card in cards)
+        {
+            if (card != null)
+            {
+                card.gameObject.SetActive(true);
+                card.transform.localScale = Vector3.zero;
+            }
+        }
 
         // Recherche le nouveau wanted par la propriété characterName
         ValidateWantedCard();
@@ -624,15 +671,14 @@ public class GridManager : MonoBehaviour
             }
         }
         
-        // Positionner explicitement les cartes pendant qu'elles sont encore cachées (à échelle zéro)
+        // Positionner explicitement les cartes pendant qu'elles sont encore cachées
         ArrangeCardsBasedOnStateWithoutAnimation();
         Debug.Log($"Cartes positionnées - État: {currentState}, Nombre de cartes: {cards.Count}");
         
         // Informer GameManager du nouveau wanted (cela déclenchera la roulette UI)
         GameManager.Instance.SelectNewWantedCharacter(wantedCard);
         
-        // Attendre que la roulette UI se termine avant de montrer les cartes
-        // Les cartes seront animées par UIManager quand sa roulette sera finie
+        // Les cartes seront rendues visibles par UIManager quand la roulette UI sera terminée
         isTransitioningDifficulty = false;
         isRouletteActive = false;
         Debug.Log("Fin de la préparation des nouvelles cartes");
@@ -924,8 +970,6 @@ public class GridManager : MonoBehaviour
             
             for (int row = 0; row < cardsInThisColumn; row++)
             {
-                if (currentCardIndex >= cards.Count) break;
-                
                 RectTransform rectTransform = cards[currentCardIndex].GetComponent<RectTransform>();
                 float initialY = columnStartY - (row * verticalSpacing);
                 
@@ -1532,6 +1576,7 @@ public class GridManager : MonoBehaviour
         
         // Arrêter toutes les animations en cours sur cette carte
         DOTween.Kill(rectTransform);
+        
         
         // Log de débogage pour suivre le mouvement
         Debug.Log($"Démarrage du mouvement continu pour {card.name} avec vitesse {speed}");

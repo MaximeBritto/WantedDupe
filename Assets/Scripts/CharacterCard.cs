@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using DG.Tweening;
 
 public class CharacterCard : MonoBehaviour
 {
@@ -85,8 +86,48 @@ public class CharacterCard : MonoBehaviour
 
     private IEnumerator HandleCorrectClick()
     {
-        // Attendre que l'animation de réussite se joue
-        yield return new WaitForSeconds(0.5f);
+        // Stocker la position actuelle et l'échelle de la carte
+        Vector3 originalPosition = transform.position;
+        Vector3 originalLocalPosition = transform.localPosition;
+        Vector3 originalScale = transform.localScale;
+        
+        // Stopper toute animation en cours sur cette carte
+        DOTween.Kill(transform);
+        
+        // Garder cette carte visible mais faire disparaître toutes les autres
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            // Pause le GridManager pour éviter tout repositionnement pendant notre animation
+            gridManager.StopAllCardMovements();
+            
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null && card != this)
+                {
+                    // Arrêter toute animation sur les autres cartes
+                    DOTween.Kill(card.transform);
+                    card.transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+                }
+            }
+            
+            // Mettre en évidence la bonne carte trouvée
+            transform.DOScale(1.2f, 0.3f).SetEase(Ease.OutBack)
+                .OnComplete(() => {
+                    transform.DOScale(1f, 0.2f).SetEase(Ease.InOutBack);
+                });
+        }
+        
+        // S'assurer que la carte reste fixe à sa position actuelle
+        for (float t = 0; t < 1f; t += 0.05f)
+        {
+            // Forcer la position à rester la même
+            transform.position = originalPosition;
+            transform.localPosition = originalLocalPosition;
+            
+            // Attendre une courte période
+            yield return new WaitForSeconds(0.05f);
+        }
         
         // Ensuite ajouter le score et déclencher la séquence suivante
         GameManager.Instance.AddScore();
