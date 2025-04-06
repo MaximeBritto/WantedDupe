@@ -89,7 +89,7 @@ public class CharacterCard : MonoBehaviour
         // Stocker la position actuelle et l'échelle de la carte
         Vector3 originalPosition = transform.position;
         Vector3 originalLocalPosition = transform.localPosition;
-        Vector3 originalScale = transform.localScale;
+        Vector3 originalAnchoredPosition = GetComponent<RectTransform>().anchoredPosition;
         
         // Stopper toute animation en cours sur cette carte
         DOTween.Kill(transform);
@@ -124,10 +124,29 @@ public class CharacterCard : MonoBehaviour
             // Forcer la position à rester la même
             transform.position = originalPosition;
             transform.localPosition = originalLocalPosition;
+            GetComponent<RectTransform>().anchoredPosition = originalAnchoredPosition;
             
             // Attendre une courte période
             yield return new WaitForSeconds(0.05f);
         }
+        
+        // IMPORTANT: Figer définitivement la position en désactivant tout
+        // mouvement possible venant d'autres scripts
+        // Cela empêchera complètement la carte de bouger pendant la transition
+        RectTransform rt = GetComponent<RectTransform>();
+        var layoutElement = GetComponent<UnityEngine.UI.LayoutElement>();
+        if (layoutElement != null)
+            layoutElement.ignoreLayout = true;
+        
+        // Masquer la carte juste avant d'ajouter le score pour éviter
+        // tout effet de déplacement visible
+        DOTween.Sequence()
+            .AppendInterval(0.9f)  // Attendre presque jusqu'à la fin
+            .Append(transform.DOScale(0f, 0.1f))  // Disparaître rapidement
+            .SetEase(Ease.InBack);
+        
+        // Attendre 1 seconde totale avant d'ajouter le score
+        yield return new WaitForSeconds(1f);
         
         // Ensuite ajouter le score et déclencher la séquence suivante
         GameManager.Instance.AddScore();
