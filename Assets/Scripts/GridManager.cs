@@ -390,8 +390,8 @@ public class GridManager : MonoBehaviour
             cards = cards.Where(c => c != null).ToList();
         }
         
-        // S'assurer que les cartes sont correctement positionnées avant d'animer
-        ArrangeCardsBasedOnStateWithoutAnimation();
+        // IMPORTANT: Ne pas rappeler ArrangeCardsBasedOnStateWithoutAnimation ici
+        // pour éviter un double placement des cartes
         
         isCardAnimationRunning = true;
         Debug.Log($"Animation d'entrée démarrée pour {cards.Count} cartes");
@@ -400,10 +400,16 @@ public class GridManager : MonoBehaviour
         GridState stateAfterAnimation = currentState;
         bool needsMovementAfterAnimation = IsMovementState(stateAfterAnimation);
         
-        // S'assurer que toutes les cartes sont à l'échelle zéro au début
+        // Mémoriser les positions actuelles pour chaque carte
+        Dictionary<CharacterCard, Vector2> originalPositions = new Dictionary<CharacterCard, Vector2>();
+        
         foreach (var card in cards)
         {
             if (card == null) continue;
+            
+            // Mémoriser la position actuelle
+            RectTransform rt = card.GetComponent<RectTransform>();
+            originalPositions[card] = rt.anchoredPosition;
             
             // Arrêter toutes les animations en cours sur cette carte
             DOTween.Kill(card.transform);
@@ -422,6 +428,13 @@ public class GridManager : MonoBehaviour
         {
             if (card == null) continue;
             
+            // Récupérer la position mémorisée
+            Vector2 originalPosition = originalPositions[card];
+            
+            // S'assurer que la carte est à la bonne position avant d'animer
+            RectTransform rt = card.GetComponent<RectTransform>();
+            rt.anchoredPosition = originalPosition;
+            
             // Délai PLUS COURT entre chaque carte pour que l'animation se termine plus vite
             float delay = animationDelay * 0.01f; // Réduit à 0.01 pour une animation plus rapide
             
@@ -434,6 +447,9 @@ public class GridManager : MonoBehaviour
                     if (card != null)
                     {
                         card.transform.localScale = Vector3.one;
+                        
+                        // Restaurer la position d'origine pour être sûr
+                        card.GetComponent<RectTransform>().anchoredPosition = originalPosition;
                     }
                 });
             
@@ -447,9 +463,10 @@ public class GridManager : MonoBehaviour
         
         // Marquer la fin de l'animation après le délai calculé
         DOVirtual.DelayedCall(totalAnimationDuration, () => {
-            // S'assurer que toutes les cartes ont la bonne échelle
+            // S'assurer que toutes les cartes ont la bonne échelle et la bonne position
             int fixedCards = 0;
             int activatedCards = 0;
+            int repositionedCards = 0;
             
             foreach (var card in cards)
             {
@@ -468,12 +485,20 @@ public class GridManager : MonoBehaviour
                         card.transform.localScale = Vector3.one;
                         fixedCards++;
                     }
+                    
+                    // Si la position a changé, la restaurer
+                    RectTransform rt = card.GetComponent<RectTransform>();
+                    if (originalPositions.ContainsKey(card) && Vector2.Distance(rt.anchoredPosition, originalPositions[card]) > 0.1f)
+                    {
+                        rt.anchoredPosition = originalPositions[card];
+                        repositionedCards++;
+                    }
                 }
             }
             
-            if (fixedCards > 0 || activatedCards > 0)
+            if (fixedCards > 0 || activatedCards > 0 || repositionedCards > 0)
             {
-                Debug.Log($"Animation terminée - {fixedCards} cartes échelle ajustée, {activatedCards} cartes activées");
+                Debug.Log($"Animation terminée - {fixedCards} cartes échelle ajustée, {activatedCards} cartes activées, {repositionedCards} cartes repositionnées");
             }
             else
             {
@@ -798,60 +823,74 @@ public class GridManager : MonoBehaviour
         
         Debug.Log("Début de l'arrangement des cartes - État: " + currentState);
         
+        // Arrêter tous les mouvements et animations en cours
         StopAllCardMovements();
+        
+        // Mélanger les cartes avant de les arranger (pour des positions aléatoires)
         ShuffleCards();
         
-        // Appliquer les dimensions temporaires selon le mode
+        // Appliquer les dimensions spécifiques selon le mode
         ApplyStateSpecificDimensions(currentState);
         
         // Positionner les cartes en fonction de l'état actuel sans animation
-            switch (currentState)
-            {
-                case GridState.Aligned:
+        switch (currentState)
+        {
+            case GridState.Aligned:
                 Debug.Log("Arrangeant les cartes en ligne");
-                    ArrangeCardsInLine();
-                    break;
-                case GridState.Columns:
+                ArrangeCardsInLine();
+                break;
+            case GridState.Columns:
                 Debug.Log("Arrangeant les cartes en colonnes");
-                    ArrangeCardsInColumns();
-                    break;
-                case GridState.CircularAligned:
+                ArrangeCardsInColumns();
+                break;
+            case GridState.CircularAligned:
                 Debug.Log("Arrangeant les cartes en cercles");
-                    ArrangeCardsInCircles();
-                    break;
-                case GridState.Static:
+                ArrangeCardsInCircles();
+                break;
+            case GridState.Static:
                 Debug.Log("Arrangeant les cartes aléatoirement (statique)");
-                    ArrangeCardsRandomly(false);
-                    break;
-                case GridState.SlowMoving:
-                case GridState.FastMoving:
+                ArrangeCardsRandomly(false);
+                break;
+            case GridState.SlowMoving:
+            case GridState.FastMoving:
                 Debug.Log("Arrangeant les cartes aléatoirement (sans démarrer le mouvement)");
                 ArrangeCardsRandomly(false); // Ne pas démarrer le mouvement tout de suite
-                    break;
-                case GridState.AlignedMoving:
+                break;
+            case GridState.AlignedMoving:
                 Debug.Log("Positionnement pour mouvement aligné (sans démarrer le mouvement)");
                 PositionCardsForAlignedMovement(); // Nouvelle méthode sans démarrer le mouvement
-                    break;
-                case GridState.ColumnsMoving:
+                break;
+            case GridState.ColumnsMoving:
                 Debug.Log("Positionnement pour mouvement en colonnes (sans démarrer le mouvement)");
                 PositionCardsForColumnsMovement(); // Nouvelle méthode sans démarrer le mouvement
-                    break;
-                case GridState.CircularAlignedMoving:
+                break;
+            case GridState.CircularAlignedMoving:
                 Debug.Log("Positionnement pour mouvement circulaire (sans démarrer le mouvement)");
                 PositionCardsForCircularMovement(); // Nouvelle méthode sans démarrer le mouvement
-                    break;
-                case GridState.PulsingMoving:
+                break;
+            case GridState.PulsingMoving:
                 Debug.Log("Positionnement pour mouvement pulsant (sans démarrer le mouvement)");
                 ArrangeCardsRandomly(false); // Positionner aléatoirement sans démarrer le mouvement
-                    break;
-            }
+                break;
+        }
         
-        // Activer les cartes si elles ne sont pas actives
+        // IMPORTANT: Fixer les positions des cartes pour éviter tout repositionnement indésirable
         foreach (var card in cards)
         {
-            if (card != null && !card.gameObject.activeSelf)
+            if (card != null)
             {
-                card.gameObject.SetActive(true);
+                // Activer la carte si elle était désactivée
+                if (!card.gameObject.activeSelf)
+                {
+                    card.gameObject.SetActive(true);
+                }
+                
+                // Arrêter toute animation ou mouvement en cours sur cette carte
+                DOTween.Kill(card.transform);
+                
+                // Mémoriser la position exacte pour éviter les déplacements non désirés
+                var rectTransform = card.GetComponent<RectTransform>();
+                rectTransform.anchoredPosition = rectTransform.anchoredPosition;
             }
         }
         
@@ -1661,14 +1700,19 @@ public class GridManager : MonoBehaviour
 
     private void UpdateDifficultyOnScoreChange()
     {
-        // Ne pas mettre à jour la difficulté si:
+        if (GameManager.Instance == null) return;
+        
+        // Ignorer la mise à jour si :
         // 1. Une roulette est en cours
         // 2. Une transition de difficulté est déjà en cours
         if (!IsRouletteInProgress() && !isTransitioningDifficulty)
         {
             Debug.Log("Mise à jour de la difficulté suite à un changement de score");
-        UpdateDifficultyLevel();
-            ArrangeCardsBasedOnStateWithoutAnimation();
+            UpdateDifficultyLevel();
+            
+            // IMPORTANT: Ne PAS appeler ArrangeCardsBasedOnStateWithoutAnimation ici
+            // car cela pourrait causer un effet visuel de double placement des cartes
+            // Les cartes seront correctement placées lors de la prochaine roulette
         }
         else
         {

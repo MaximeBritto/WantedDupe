@@ -342,71 +342,32 @@ public class UIManager : MonoBehaviour
                 parentTransform.gameObject.SetActive(true);
             }
             
-            // IMPORTANT: Toujours arranger les cartes après la roulette
-            gridManager.ArrangeCardsBasedOnState();
+            // Identifier le pattern actuel
+            string patternType = gridManager.CurrentState.ToString();
+            Debug.Log($"UIManager: Pattern détecté: {patternType}");
             
-            // Log pour déboguer le nombre de cartes
-            Debug.Log($"Nombre de cartes à animer: {gridManager.cards.Count}");
-            
-            // S'assurer que toutes les cartes sont prêtes à être animées
+            // Préparer toutes les cartes à être à échelle zéro AVANT le placement
             foreach (var card in gridManager.cards)
             {
                 if (card != null)
                 {
                     card.gameObject.SetActive(true);
                     card.transform.localScale = Vector3.zero;
+                    
+                    // Stopper toute animation en cours sur cette carte
+                    DOTween.Kill(card.transform);
                 }
             }
             
-            // Identifier le pattern actuel
-            string patternType = gridManager.CurrentState.ToString();
-            Debug.Log($"UIManager: Pattern détecté: {patternType}");
+            // UN SEUL APPEL à ArrangeCardsBasedOnState pour éviter les doubles placements
+            // Cela positionne initialement les cartes au bon endroit
+            gridManager.ArrangeCardsBasedOnState();
             
-            // Traitement spécial pour certains patterns qui posent problème
-            float delayBeforeAnimation = 0.3f;
+            // Log pour déboguer le nombre de cartes
+            Debug.Log($"Nombre de cartes à animer: {gridManager.cards.Count}");
             
-            if (patternType.Contains("Column"))
-            {
-                Debug.Log("UIManager: Traitement spécial pour pattern Columns");
-                delayBeforeAnimation = 0.5f;
-                
-                // Forcer un second positionnement pour les colonnes
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-                
-                // Forcer un dernier positionnement
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-            }
-            else if (patternType.Contains("Circular"))
-            {
-                Debug.Log("UIManager: Traitement spécial pour pattern CircularAligned");
-                delayBeforeAnimation = 0.5f;
-                
-                // Forcer un second positionnement
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-                
-                // Forcer un dernier positionnement
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-            }
-            else if (patternType.Contains("Pulsing"))
-            {
-                Debug.Log("UIManager: Traitement spécial pour pattern Pulsing");
-                delayBeforeAnimation = 0.7f;
-                
-                // Forcer une seconde fois l'arrangement pour les patterns complexes
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-                
-                // Attendre encore pour s'assurer que tout est bien positionné
-                yield return new WaitForSeconds(0.2f);
-                gridManager.ArrangeCardsBasedOnState();
-            }
-            
-            // Pour tous les patterns, un délai final avant de montrer les cartes
-            yield return new WaitForSeconds(delayBeforeAnimation);
+            // Attendre un court délai avant d'animer l'entrée des cartes
+            yield return new WaitForSeconds(0.4f);
             
             // Animer l'entrée des cartes maintenant que tout est correctement positionné
             Debug.Log("UIManager: Animation des cartes après positionnement");
@@ -476,8 +437,10 @@ public class UIManager : MonoBehaviour
                     Debug.LogWarning("SOLUTION DE SECOURS: Le canvas de la grille a été réactivé");
                 }
                 
-                // S'assurer que les cartes sont correctement positionnées
-                gridManager.ArrangeCardsBasedOnState();
+                // IMPORTANT: Ne PAS appeler ArrangeCardsBasedOnState ici car cela pourrait
+                // causer un double placement des cartes et générer l'effet visuel indésirable
+                // Laisser les cartes à leur position actuelle
+                Debug.Log("SOLUTION DE SECOURS: Cartes corrigées sans repositionnement pour éviter le bug visuel");
             }
             else
             {
