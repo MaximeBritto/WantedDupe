@@ -118,9 +118,12 @@ public class GridManager : MonoBehaviour
     {
         // Utiliser une lambda pour appeler InitializeGrid avec le paramètre par défaut
         GameManager.Instance.onGameStart.AddListener(() => {
-            // Au démarrage du jeu, initialiser les cartes, les arranger et les animer
-            InitializeGrid();
-            Debug.Log("Jeu démarré - Grille initialisée");
+            // IMPORTANT: Initialiser la grille mais NE PAS animer les cartes tout de suite
+            // Le paramètre false indique de ne pas animer les cartes
+            InitializeGrid(false);
+            
+            // UIManager.WantedRouletteEffect s'occupera d'animer les cartes après la roulette
+            Debug.Log("Jeu démarré - Grille initialisée sans animation (attente fin de roulette)");
         });
         
         GameManager.Instance.onScoreChanged.AddListener(OnScoreChanged);
