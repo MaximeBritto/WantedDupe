@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
 using System.Linq;
+using UnityEngine.UI;
 
 public class GridManager : MonoBehaviour
 {
@@ -62,7 +63,11 @@ public class GridManager : MonoBehaviour
         ColumnsMoving,
         CircularAligned,
         CircularAlignedMoving,
-        PulsingMoving
+        PulsingMoving,
+        WaveMoving,
+        WaveWrapAround,
+        QuantumTeleport,
+        GravityWells
     }
 
     [System.Serializable]
@@ -77,6 +82,10 @@ public class GridManager : MonoBehaviour
         [Header("Column Specific Settings (Only used if state is Columns or ColumnsMoving)")]
         public int fixedColumns = 2;
         public float fixedColumnSpacing = 150f;
+
+        [Header("Wave Wrap Around Settings")]
+        [Range(1, 10)]
+        public int waveWrapAroundMaxRows = 3;
 
         [Header("Only One Color")]
         public bool onlyOneColor;
@@ -524,7 +533,11 @@ public class GridManager : MonoBehaviour
                state == GridState.AlignedMoving || 
                state == GridState.ColumnsMoving || 
                state == GridState.CircularAlignedMoving || 
-               state == GridState.PulsingMoving;
+               state == GridState.PulsingMoving ||
+               state == GridState.WaveMoving ||
+               state == GridState.WaveWrapAround ||
+               state == GridState.QuantumTeleport ||
+               state == GridState.GravityWells;
     }
     
     // Nouvelle méthode pour démarrer les mouvements après l'animation
@@ -587,6 +600,26 @@ public class GridManager : MonoBehaviour
                     Debug.Log("Démarrage effectif du mouvement pulsant après délai supplémentaire");
                     StartPulsingMovement();
                 });
+                break;
+                
+            case GridState.WaveMoving:
+                Debug.Log("Démarrage du mouvement ondulant après animation");
+                StartWaveMovement();
+                break;
+
+            case GridState.WaveWrapAround:
+                Debug.Log("Démarrage du mouvement de vague avec wrap around");
+                StartWaveWrapAroundMovement();
+                break;
+
+            case GridState.QuantumTeleport:
+                Debug.Log("Démarrage de la téléportation quantique après animation");
+                StartQuantumTeleport();
+                break;
+                
+            case GridState.GravityWells:
+                Debug.Log("Démarrage des puits gravitationnels après animation");
+                StartGravityWellsMovement();
                 break;
         }
     }
@@ -872,6 +905,22 @@ public class GridManager : MonoBehaviour
                 Debug.Log("Positionnement pour mouvement pulsant (sans démarrer le mouvement)");
                 ArrangeCardsRandomly(false); // Positionner aléatoirement sans démarrer le mouvement
                 break;
+            case GridState.WaveMoving:
+                Debug.Log("Positionnement pour mouvement ondulant (sans démarrer le mouvement)");
+                PositionCardsForWaveMovement(); // Nouvelle méthode pour le motif de vagues
+                break;
+            case GridState.WaveWrapAround:
+                Debug.Log("Positionnement pour mouvement de vague avec wrap around (sans démarrer le mouvement)");
+                PositionCardsForWaveWrapAroundMovement(); // Nouvelle méthode pour le mouvement de vague avec wrap around
+                break;
+            case GridState.QuantumTeleport:
+                Debug.Log("Positionnement pour téléportation quantique (sans démarrer le mouvement)");
+                ArrangeCardsRandomly(false); // Positionner aléatoirement sans démarrer le mouvement
+                break;
+            case GridState.GravityWells:
+                Debug.Log("Positionnement pour puits gravitationnels (sans démarrer le mouvement)");
+                ArrangeCardsRandomly(false); // Positionner aléatoirement sans démarrer le mouvement
+                break;
         }
         
         // IMPORTANT: Fixer les positions des cartes pour éviter tout repositionnement indésirable
@@ -1076,11 +1125,150 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    // Nouvelle méthode pour positionner les cartes pour le pattern WaveMoving
+    private void PositionCardsForWaveMovement()
+    {
+        StopAllCardMovements();
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f;
+        float availableHeight = playAreaHeight * 0.9f;
+        
+        // Calculer le nombre optimal de rangées et de colonnes
+        int maxColumns = Mathf.FloorToInt(availableWidth / horizontalSpacing);
+        int maxRows = Mathf.CeilToInt((float)totalCards / maxColumns);
+        
+        // S'assurer que nous avons au moins 2 rangées pour l'effet de vague
+        maxRows = Mathf.Max(maxRows, 2);
+        
+        // Ajuster si nécessaire pour mieux répartir les cartes
+        if (maxRows > 6) {
+            maxRows = 6; // Limiter à 6 rangées maximum pour un meilleur effet visuel
+            maxColumns = Mathf.CeilToInt((float)totalCards / maxRows);
+        }
+        
+        float startX = -availableWidth / 2;
+        float startY = availableHeight / 2 - verticalSpacing;
+        
+        // Calculer l'espacement horizontal dynamique
+        float dynamicHorizontalSpacing = (maxColumns > 1) ? availableWidth / (maxColumns - 1) : 0;
+        
+        Debug.Log($"Wave pattern: {maxRows} rangées, {maxColumns} colonnes max");
+        
+        // Positionner les cartes en grille
+        int cardIndex = 0;
+        for (int row = 0; row < maxRows && cardIndex < totalCards; row++)
+        {
+            int cardsInThisRow = Mathf.Min(maxColumns, totalCards - cardIndex);
+            float rowWidth = (cardsInThisRow - 1) * dynamicHorizontalSpacing;
+            float rowStartX = -rowWidth / 2; // Centrer chaque rangée
+            
+            for (int col = 0; col < cardsInThisRow; col++)
+            {
+                if (cardIndex >= totalCards) break;
+                
+                RectTransform rectTransform = cards[cardIndex].GetComponent<RectTransform>();
+                float xPos = rowStartX + col * dynamicHorizontalSpacing;
+                float yPos = startY - row * verticalSpacing;
+                
+                // Positionnement direct sans animation
+                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+                cardIndex++;
+            }
+        }
+    }
+
+    // Nouvelle méthode pour démarrer le mouvement ondulant
+    private void StartWaveMovement()
+    {
+        Debug.Log("Démarrage du mouvement de vague amélioré");
+        StopAllCardMovements();
+        
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            
+            RectTransform rectTransform = card.GetComponent<RectTransform>();
+            Vector2 startPos = rectTransform.anchoredPosition;
+            
+            // Attribuer une phase aléatoire pour varier le mouvement
+            float randomPhase = Random.Range(0f, Mathf.PI * 2);
+            float amplitude = Random.Range(20f, 40f); // Amplitude de l'ondulation
+            float frequency = Random.Range(0.8f, 1.2f); // Fréquence de l'ondulation
+            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.moveSpeed; // Vitesse de déplacement horizontal
+            
+            // Créer une séquence d'animation qui ne se termine jamais
+            Sequence waveSequence = DOTween.Sequence();
+            
+            // Utiliser un callback OnUpdate pour créer le mouvement combiné
+            waveSequence.SetLoops(-1) // Boucle infinie
+                .SetUpdate(true)
+                .OnUpdate(() => {
+                    if (card == null || rectTransform == null) return;
+                    
+                    // Calculer le mouvement ondulant en fonction du temps
+                    float time = Time.time * frequency * currentLevel.moveSpeed;
+                    float wave = amplitude * Mathf.Sin(time + randomPhase);
+                    
+                    // Calculer le mouvement horizontal
+                    float horizontalMovement = Mathf.PingPong(Time.time * horizontalSpeed, playAreaWidth) - (playAreaWidth / 2);
+                    
+                    // Combiner les mouvements
+                    rectTransform.anchoredPosition = new Vector2(horizontalMovement, startPos.y + wave);
+                });
+            
+            activeTweens.Add(waveSequence);
+        }
+    }
+
+    private void StartWaveWrapAroundMovement()
+    {
+        Debug.Log("Démarrage du mouvement de vague avec wrap around");
+        StopAllCardMovements();
+        
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            
+            RectTransform rectTransform = card.GetComponent<RectTransform>();
+            Vector2 startPos = rectTransform.anchoredPosition;
+            
+            // Attribuer une phase aléatoire pour varier le mouvement
+            float randomPhase = Random.Range(0f, Mathf.PI * 2);
+            float amplitude = Random.Range(20f, 40f); // Amplitude de l'ondulation
+            float frequency = Random.Range(0.8f, 1.2f); // Fréquence de l'ondulation
+            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.moveSpeed; // Vitesse de déplacement horizontal
+            
+            // Créer une séquence d'animation qui ne se termine jamais
+            Sequence waveSequence = DOTween.Sequence();
+            
+            // Utiliser un callback OnUpdate pour créer le mouvement combiné
+            waveSequence.SetLoops(-1) // Boucle infinie
+                .SetUpdate(true)
+                .OnUpdate(() => {
+                    if (card == null || rectTransform == null) return;
+                    
+                    // Calculer le mouvement ondulant en fonction du temps
+                    float time = Time.time * frequency * currentLevel.moveSpeed;
+                    float wave = amplitude * Mathf.Sin(time + randomPhase);
+                    
+                    // Calculer le mouvement horizontal avec wrap around
+                    float horizontalMovement = (Time.time * horizontalSpeed) % playAreaWidth;
+                    if (horizontalMovement < 0) horizontalMovement += playAreaWidth;
+                    horizontalMovement -= playAreaWidth / 2; // Centrer le mouvement
+                    
+                    // Combiner les mouvements
+                    rectTransform.anchoredPosition = new Vector2(horizontalMovement, startPos.y + wave);
+                });
+            
+            activeTweens.Add(waveSequence);
+        }
+    }
+
     // Nouvelle méthode pour gérer les dimensions selon l'état
     private void ApplyStateSpecificDimensions(GridState state)
     {
         // Si l'état est lié à Aligned ou Columns (moving ou non), utiliser les dimensions en dur
-        if (state == GridState.AlignedMoving || state == GridState.ColumnsMoving)
+        if (state == GridState.AlignedMoving || state == GridState.ColumnsMoving || state == GridState.WaveWrapAround)
         {
             playAreaWidth = FIXED_PLAY_AREA_WIDTH;
             playAreaHeight = FIXED_PLAY_AREA_HEIGHT;
@@ -1594,7 +1782,7 @@ public class GridManager : MonoBehaviour
                     // Vérifier à nouveau que la carte est toujours valide
                     if (card != null && card.gameObject.activeSelf)
                     {
-                        float randomTargetScale = Random.Range(0.8f, 1.5f); // Taille max augmentée à 1.5
+                        float randomTargetScale = Random.Range(0.8f, 3f); // Taille max augmentée à 1.5
                         float randomDuration = Random.Range(0.8f, 1.5f);
                         
                         // Créer une animation de pulsation plus douce
@@ -1831,6 +2019,437 @@ public class GridManager : MonoBehaviour
         AnimateCardsEntry();
         
         Debug.Log("Jeu réinitialisé avec succès.");
+    }
+
+    // Nouvelle méthode pour le mouvement de téléportation quantique
+    private void StartQuantumTeleport()
+    {
+        Debug.Log("Démarrage de la téléportation quantique améliorée");
+        StopAllCardMovements();
+        
+        // Utiliser un seul Tween global pour gérer toutes les téléportations
+        Sequence globalTeleportSequence = DOTween.Sequence();
+        globalTeleportSequence.SetLoops(-1);
+        globalTeleportSequence.SetUpdate(true);
+        
+        // Configuration des téléportations pour chaque carte
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            
+            // Téléporter immédiatement pour montrer l'effet
+            DOVirtual.DelayedCall(Random.Range(0.5f, 2.0f), () => {
+                if (card != null) TeleportCard(card, true);
+            });
+        }
+        
+        // Chaque intervalle, choisir des cartes aléatoires à téléporter
+        globalTeleportSequence.AppendCallback(() => {
+            // Téléporter un nombre aléatoire de cartes
+            int numCardsToTeleport = Mathf.Max(1, cards.Count / 4); // Au moins 25% des cartes
+            List<CharacterCard> shuffledCards = new List<CharacterCard>(cards);
+            ShuffleList(shuffledCards);
+            
+            for (int i = 0; i < numCardsToTeleport && i < shuffledCards.Count; i++)
+            {
+                if (shuffledCards[i] != null)
+                {
+                    TeleportCard(shuffledCards[i], false);
+                }
+            }
+        });
+        
+        // Intervalle entre les téléportations en masse
+        globalTeleportSequence.AppendInterval(1.5f / currentLevel.moveSpeed);
+        
+        activeTweens.Add(globalTeleportSequence);
+        
+        // Démarrer également des mouvements lents pour toutes les cartes
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            // Mouvement très lent pour mieux voir les téléportations
+            StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.4f);
+        }
+    }
+
+    // Méthode pour téléporter une carte avec effet visuel amélioré
+    private void TeleportCard(CharacterCard card, bool initialTeleport)
+    {
+        if (card == null) return;
+        
+        RectTransform rectTransform = card.GetComponent<RectTransform>();
+        if (rectTransform == null) return;
+        
+        // Arrêter tout mouvement continu en cours pour cette carte
+        DOTween.Kill(rectTransform);
+        
+        // Sauvegarder l'échelle actuelle
+        Vector3 originalScale = card.transform.localScale;
+        Vector2 originalPosition = rectTransform.anchoredPosition;
+        
+        // Obtenir une nouvelle position bien éloignée de la position actuelle
+        Vector2 newPosition;
+        int attempts = 0;
+        do {
+            newPosition = GetValidCardPosition();
+            attempts++;
+        } while (Vector2.Distance(originalPosition, newPosition) < playAreaWidth * 0.3f && attempts < 5);
+        
+        // Effet de flash avec scaling + changement de rotation
+        Sequence teleportSequence = DOTween.Sequence();
+        
+        // Ajouter un petit flash de couleur avant la téléportation
+        if (card.GetComponent<Image>() != null)
+        {
+            Image cardImage = card.GetComponent<Image>();
+            Color originalColor = cardImage.color;
+            
+            // Flash en blanc
+            teleportSequence.Append(
+                cardImage.DOColor(new Color(1f, 1f, 1f, 1f), 0.1f)
+            );
+            
+            // Revenir à la couleur d'origine après la téléportation
+            teleportSequence.AppendCallback(() => {
+                if (cardImage != null)
+                    cardImage.DOColor(originalColor, 0.2f);
+            });
+        }
+        
+        // Disparition avec rétrécissement rapide
+        teleportSequence.Append(
+            card.transform.DOScale(Vector3.zero, 0.15f)
+                .SetEase(Ease.InBack)
+        );
+        
+        // Téléportation instantanée
+        teleportSequence.AppendCallback(() => {
+            if (rectTransform != null)
+            {
+                rectTransform.anchoredPosition = newPosition;
+                
+                // Ajouter un effet particule ou flash à l'endroit d'apparition si possible
+                Debug.Log($"Carte téléportée de {originalPosition} à {newPosition}");
+            }
+        });
+        
+        // Réapparition avec effet de rebond
+        teleportSequence.Append(
+            card.transform.DOScale(originalScale * 1.3f, 0.2f)
+                .SetEase(Ease.OutBack)
+        );
+        
+        // Retour à l'échelle normale
+        teleportSequence.Append(
+            card.transform.DOScale(originalScale, 0.1f)
+                .SetEase(Ease.OutQuad)
+        );
+        
+        // Jouer la séquence
+        teleportSequence.Play();
+        
+        // Démarrer un nouveau mouvement lent depuis la nouvelle position après un court délai
+        DOVirtual.DelayedCall(0.5f, () => {
+            if (card != null && card.gameObject.activeInHierarchy)
+            {
+                // Mouvement lent pour mieux voir les téléportations suivantes
+                StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.4f);
+            }
+        });
+    }
+
+    // Méthode utilitaire pour mélanger une liste
+    private void ShuffleList<T>(List<T> list)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = Random.Range(0, n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+    }
+    
+    // Variables pour les puits gravitationnels
+    private List<Vector2> gravityWells = new List<Vector2>();
+    private List<float> gravityWellStrengths = new List<float>();
+    private List<float> gravityWellLifetimes = new List<float>();
+    private List<float> gravityWellRadii = new List<float>();
+    private const int MAX_GRAVITY_WELLS = 5;
+    private const float MIN_WELL_DISTANCE = 200f;
+    
+    // Nouvelle méthode pour le mouvement des puits gravitationnels
+    private void StartGravityWellsMovement()
+    {
+        Debug.Log("Démarrage du mouvement des puits gravitationnels");
+        StopAllCardMovements();
+        
+        // Initialiser les cartes avec un mouvement lent
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.3f);
+        }
+        
+        // Créer une séquence pour gérer les puits gravitationnels
+        Sequence gravitySequence = DOTween.Sequence();
+        gravitySequence.SetLoops(-1);
+        gravitySequence.SetUpdate(true);
+        
+        // Initialiser la liste des puits gravitationnels
+        gravityWells.Clear();
+        gravityWellStrengths.Clear();
+        gravityWellLifetimes.Clear();
+        gravityWellRadii.Clear();
+        
+        // Créer des puits gravitationnels initiaux
+        CreateInitialGravityWells();
+        
+        // Cycle pour gérer les puits gravitationnels
+        gravitySequence.AppendCallback(() => {
+            // Mettre à jour les puits gravitationnels existants
+            UpdateGravityWells();
+            
+            // Appliquer les forces gravitationnelles aux cartes
+            ApplyGravityWellForces();
+        });
+        
+        gravitySequence.AppendInterval(0.05f); // Mise à jour très fréquente
+        
+        activeTweens.Add(gravitySequence);
+    }
+    
+    // Créer les puits gravitationnels initiaux
+    private void CreateInitialGravityWells()
+    {
+        // Créer 2 puits gravitationnels initiaux
+        for (int i = 0; i < 2; i++)
+        {
+            CreateGravityWell();
+        }
+    }
+    
+    // Créer un nouveau puits gravitationnel
+    private void CreateGravityWell()
+    {
+        if (gravityWells.Count >= MAX_GRAVITY_WELLS) return;
+        
+        // Trouver une position valide pour le puits
+        Vector2 wellPosition;
+        int attempts = 0;
+        do {
+            float x = Random.Range(-playAreaWidth/2 * 0.8f, playAreaWidth/2 * 0.8f);
+            float y = Random.Range(-playAreaHeight/2 * 0.8f, playAreaHeight/2 * 0.8f);
+            wellPosition = new Vector2(x, y);
+            attempts++;
+            
+            // Vérifier si la position est assez éloignée des autres puits
+            bool tooClose = false;
+            foreach (var existingWell in gravityWells)
+            {
+                if (Vector2.Distance(wellPosition, existingWell) < MIN_WELL_DISTANCE)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (!tooClose) break;
+            
+        } while (attempts < 10);
+        
+        // Force gravitationnelle aléatoire (positive = attraction, négative = répulsion)
+        float strength = Random.Range(0.7f, 1.5f) * currentLevel.moveSpeed;
+        if (Random.value < 0.3f) strength *= -1; // 30% de chance d'être répulsif
+        
+        // Durée de vie du puits gravitationnel
+        float lifetime = Random.Range(3f, 6f);
+        
+        // Rayon d'influence
+        float radius = Random.Range(250f, 500f);
+        
+        // Ajouter le puits gravitationnel aux listes
+        gravityWells.Add(wellPosition);
+        gravityWellStrengths.Add(strength);
+        gravityWellLifetimes.Add(lifetime);
+        gravityWellRadii.Add(radius);
+        
+        Debug.Log($"Nouveau puits gravitationnel créé à {wellPosition}, force={strength}, durée={lifetime}s, rayon={radius}");
+    }
+    
+    // Mettre à jour les puits gravitationnels
+    private void UpdateGravityWells()
+    {
+        // Mettre à jour la durée de vie des puits et supprimer ceux qui ont expiré
+        for (int i = gravityWells.Count - 1; i >= 0; i--)
+        {
+            gravityWellLifetimes[i] -= Time.deltaTime;
+            if (gravityWellLifetimes[i] <= 0)
+            {
+                // Supprimer le puits gravitationnel
+                gravityWells.RemoveAt(i);
+                gravityWellStrengths.RemoveAt(i);
+                gravityWellLifetimes.RemoveAt(i);
+                gravityWellRadii.RemoveAt(i);
+                
+                Debug.Log("Puits gravitationnel supprimé");
+                
+                // Créer un nouveau puits aléatoirement
+                if (Random.value < 0.7f)
+                {
+                    CreateGravityWell();
+                }
+            }
+        }
+        
+        // Créer un nouveau puits si besoin (faible probabilité)
+        if (gravityWells.Count < MAX_GRAVITY_WELLS && Random.value < 0.005f)
+        {
+            CreateGravityWell();
+        }
+    }
+    
+    // Appliquer les forces gravitationnelles aux cartes
+    private void ApplyGravityWellForces()
+    {
+        foreach (var card in cards)
+        {
+            if (card == null) continue;
+            
+            RectTransform cardRect = card.GetComponent<RectTransform>();
+            Vector2 cardPosition = cardRect.anchoredPosition;
+            Vector2 totalForce = Vector2.zero;
+            
+            // Calculer la force totale exercée par tous les puits
+            for (int i = 0; i < gravityWells.Count; i++)
+            {
+                Vector2 wellPosition = gravityWells[i];
+                float strength = gravityWellStrengths[i];
+                float radius = gravityWellRadii[i];
+                
+                // Calculer la distance au puits
+                float distance = Vector2.Distance(cardPosition, wellPosition);
+                
+                // Appliquer la force si la carte est dans le rayon d'influence
+                if (distance < radius)
+                {
+                    // Calculer la direction vers le puits
+                    Vector2 direction = (wellPosition - cardPosition).normalized;
+                    
+                    // Force inversement proportionnelle au carré de la distance (loi gravitationnelle)
+                    float forceMagnitude = strength * (1 - (distance / radius));
+                    
+                    // Ajouter cette force à la force totale
+                    totalForce += direction * forceMagnitude;
+                }
+            }
+            
+            // Appliquer la force à la carte si elle est significative
+            if (totalForce.magnitude > 0.01f)
+            {
+                // Limiter la magnitude de la force
+                if (totalForce.magnitude > 10f)
+                {
+                    totalForce = totalForce.normalized * 10f;
+                }
+                
+                // Appliquer la force comme déplacement
+                Vector2 newPosition = cardPosition + (totalForce * Time.deltaTime * 60f);
+                
+                // Maintenir la carte dans la zone de jeu
+                newPosition.x = Mathf.Clamp(newPosition.x, -playAreaWidth/2 * 0.9f, playAreaWidth/2 * 0.9f);
+                newPosition.y = Mathf.Clamp(newPosition.y, -playAreaHeight/2 * 0.9f, playAreaHeight/2 * 0.9f);
+                
+                // Déplacer la carte
+                cardRect.anchoredPosition = newPosition;
+            }
+        }
+    }
+
+    private void PositionCardsForWaveWrapAroundMovement()
+    {
+        Debug.Log("Positionnement initial des cartes pour le mouvement de vague avec wrap around");
+        StopAllCardMovements();
+        
+        // Mélanger les cartes pour une distribution aléatoire
+        ShuffleCards();
+        
+        int totalCards = cards.Count;
+        float availableWidth = playAreaWidth * 0.9f;
+        float availableHeight = playAreaHeight * 0.85f; // Utiliser 85% de la hauteur
+        
+        // Pour ce pattern, on va placer les cartes sur un nombre limité de lignes
+        int maxRows = currentLevel.waveWrapAroundMaxRows; // Utiliser la valeur du niveau de difficulté actuel
+        
+        // Calculer le nombre de cartes par ligne
+        int cardsPerRow = Mathf.CeilToInt((float)totalCards / maxRows);
+        if (cardsPerRow < 1) cardsPerRow = 1;
+        
+        // Calculer le nombre de lignes nécessaires (ne pas dépasser maxRows)
+        int rows = Mathf.Min(maxRows, Mathf.CeilToInt((float)totalCards / cardsPerRow));
+        if (rows < 1) rows = 1;
+        
+        // Calculer le spacing horizontal pour répartir les cartes uniformément
+        float actualHorizontalSpacing = availableWidth / cardsPerRow;
+        
+        // Estimer la hauteur d'une carte
+        float cardHeight = 200f;
+        
+        // Calculer la position de départ horizontale
+        float startX = -availableWidth / 2 + (actualHorizontalSpacing / 2); // Centrer horizontalement
+        
+        // Décider de la position verticale en fonction du nombre de lignes
+        float startY;
+        
+        if (rows <= 5) {
+            // Pour 1-5 lignes: centrer verticalement
+            // Calculer l'espace total occupé par les cartes verticalement
+            float totalCardsHeight = (rows - 1) * verticalSpacing + cardHeight;
+            
+            // Centrer simplement en divisant l'espace disponible
+            startY = totalCardsHeight / 2;
+            
+            // Si une seule ligne ou deux lignes, s'assurer que les cartes sont vraiment au centre
+            if (rows <= 2) {
+                startY = 0; // Position centrale exacte
+            }
+            
+            Debug.Log($"WaveWrapAround - Lignes (1-5): {rows} - Mode centré - Start Y: {startY}, Total height: {totalCardsHeight}");
+        } else {
+            // Pour 6-10 lignes: aligner en haut avec un padding de 3%
+            float topPadding = availableHeight * 0.03f; // 3% de padding en haut
+            startY = availableHeight / 2 - topPadding;
+            Debug.Log($"WaveWrapAround - Lignes (6-10): {rows} - Mode haut (padding 3%) - Start Y: {startY}");
+        }
+        
+        // Positionner les cartes avec une variation de hauteur initiale pour un effet de vague
+        for (int i = 0; i < totalCards; i++)
+        {
+            if (cards[i] == null) continue;
+            
+            RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            if (rectTransform == null) continue;
+            
+            // Calculer la position dans la grille
+            int row = i / cardsPerRow;
+            int col = i % cardsPerRow;
+            
+            // Ajouter une variation de hauteur aléatoire pour un effet de vague initial
+            float initialWaveOffset = Mathf.Sin(col * 0.5f) * 20f; // Variation sinusoïdale de 20 unités
+            
+            // Calculer la position finale
+            float xPos = startX + (col * actualHorizontalSpacing);
+            float yPos = startY - (row * verticalSpacing) + initialWaveOffset;
+            
+            // Appliquer la position
+            rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+            
+            // Appliquer une légère rotation aléatoire pour plus de naturel
+            rectTransform.rotation = Quaternion.Euler(0, 0, Random.Range(-5f, 5f));
+        }
     }
     #endregion
 }

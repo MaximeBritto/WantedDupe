@@ -3636,10 +3636,11 @@ MonoBehaviour:
   - scoreThreshold: 0
     minCards: 4
     maxCards: 4
-    moveSpeed: 1
+    moveSpeed: 10
     possibleStates: 0100000007000000
     fixedColumns: 2
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 9
     onlyOneColor: 0
   - scoreThreshold: 1
     minCards: 16
@@ -3648,7 +3649,8 @@ MonoBehaviour:
     possibleStates: 01000000
     fixedColumns: 4
     fixedColumnSpacing: 150
-    onlyOneColor: 0
+    waveWrapAroundMaxRows: 9
+    onlyOneColor: 1
   - scoreThreshold: 2
     minCards: 20
     maxCards: 20
@@ -3656,6 +3658,7 @@ MonoBehaviour:
     possibleStates: 07000000
     fixedColumns: 4
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 0
   - scoreThreshold: 3
     minCards: 28
@@ -3664,70 +3667,97 @@ MonoBehaviour:
     possibleStates: 020000000000000007000000
     fixedColumns: 1
     fixedColumnSpacing: 150
-    onlyOneColor: 0
-  - scoreThreshold: 4
-    minCards: 28
-    maxCards: 28
-    moveSpeed: 0.5
-    possibleStates: 010000000000000007000000
-    fixedColumns: 4
-    fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 0
   - scoreThreshold: 5
     minCards: 42
     maxCards: 42
     moveSpeed: 0.5
-    possibleStates: 0600000005000000
+    possibleStates: 060000000500000003000000
     fixedColumns: 6
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 1
   - scoreThreshold: 10
     minCards: 56
     maxCards: 56
-    moveSpeed: 1.2
-    possibleStates: 020000000400000005000000
+    moveSpeed: 1.4
+    possibleStates: 0200000004000000050000000a000000
     fixedColumns: 6
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 1
   - scoreThreshold: 15
     minCards: 45
     maxCards: 45
-    moveSpeed: 1.2
-    possibleStates: 030000000900000007000000
+    moveSpeed: 1.7
+    possibleStates: 0900000004000000
     fixedColumns: 6
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
+    onlyOneColor: 0
+  - scoreThreshold: 17
+    minCards: 56
+    maxCards: 56
+    moveSpeed: 1.9
+    possibleStates: 09000000040000000a000000
+    fixedColumns: 8
+    fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 1
   - scoreThreshold: 20
+    minCards: 96
+    maxCards: 96
+    moveSpeed: 2
+    possibleStates: 06000000
+    fixedColumns: 12
+    fixedColumnSpacing: 70
+    waveWrapAroundMaxRows: 3
+    onlyOneColor: 1
+  - scoreThreshold: 21
+    minCards: 64
+    maxCards: 64
+    moveSpeed: 1
+    possibleStates: 08000000
+    fixedColumns: 8
+    fixedColumnSpacing: 110
+    waveWrapAroundMaxRows: 3
+    onlyOneColor: 1
+  - scoreThreshold: 22
+    minCards: 64
+    maxCards: 64
+    moveSpeed: 3
+    possibleStates: 040000000b00000009000000
+    fixedColumns: 8
+    fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
+    onlyOneColor: 1
+  - scoreThreshold: 25
     minCards: 80
     maxCards: 80
-    moveSpeed: 2
-    possibleStates: 0200000006000000
-    fixedColumns: 10
-    fixedColumnSpacing: 85
-    onlyOneColor: 1
-  - scoreThreshold: 23
-    minCards: 56
-    maxCards: 56
-    moveSpeed: 2
-    possibleStates: 0500000002000000
+    moveSpeed: 3
+    possibleStates: 0c000000
     fixedColumns: 8
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 1
-  - scoreThreshold: 23
-    minCards: 56
-    maxCards: 56
-    moveSpeed: 2
-    possibleStates: 040000000100000009000000
+  - scoreThreshold: 27
+    minCards: 100
+    maxCards: 100
+    moveSpeed: 5
+    possibleStates: 0b0000000a00000002000000
     fixedColumns: 8
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 5
     onlyOneColor: 1
-  - scoreThreshold: 23
-    minCards: 56
-    maxCards: 56
-    moveSpeed: 2
-    possibleStates: 040000000100000009000000
-    fixedColumns: 8
-    fixedColumnSpacing: 150
+  - scoreThreshold: 30
+    minCards: 96
+    maxCards: 96
+    moveSpeed: 5
+    possibleStates: 0b0000000a000000020000000700000006000000040000000c00000009000000
+    fixedColumns: 12
+    fixedColumnSpacing: 70
+    waveWrapAroundMaxRows: 8
     onlyOneColor: 1
   currentLevel:
     scoreThreshold: 0
@@ -3737,6 +3767,7 @@ MonoBehaviour:
     possibleStates: 
     fixedColumns: 2
     fixedColumnSpacing: 150
+    waveWrapAroundMaxRows: 3
     onlyOneColor: 0
   currentState: 0
   cardSpacing: 20
@@ -3921,6 +3952,7 @@ MonoBehaviour:
   comboSound: {fileID: 0}
   comboDisappearSound: {fileID: 8300000, guid: ade54822011dd7442a2f51334ab17e40, type: 3}
   scoreIncreaseSound: {fileID: 8300000, guid: 76523dd01f054e44a9193c4a87930008, type: 3}
+  timerIncreaseSound: {fileID: 8300000, guid: b210ef81b047e1446ac6b424d6927150, type: 3}
   sfxVolume: 1
   backgroundMusic: {fileID: 8300000, guid: 6abcdc65421e0b64f8d96cf16068b035, type: 3}
   musicVolume: 0.411

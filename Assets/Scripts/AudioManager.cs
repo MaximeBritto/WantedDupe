@@ -5,14 +5,15 @@ public class AudioManager : MonoBehaviour
     public static AudioManager Instance { get; private set; }
     
     [Header("Sound Effects")]
-    public AudioClip correctSound;
-    public AudioClip wrongSound;
-    public AudioClip shuffleSound;
-    public AudioClip playButtonSound;
-    public AudioClip wantedSelectionSound;  // Nouveau son pour la sélection du wanted
-    public AudioClip comboSound;  // Nouveau son pour les images de combo
-    public AudioClip comboDisappearSound;  // Nouveau son pour la disparition des images de combo
-    public AudioClip scoreIncreaseSound;  // Nouveau son pour l'augmentation du score
+    [SerializeField] public AudioClip correctSound;
+    [SerializeField] public AudioClip wrongSound;
+    [SerializeField] public AudioClip shuffleSound;
+    [SerializeField] public AudioClip playButtonSound;
+    [SerializeField] public AudioClip wantedSelectionSound;  // Nouveau son pour la sélection du wanted
+    [SerializeField] public AudioClip comboSound;  // Nouveau son pour les images de combo
+    [SerializeField] public AudioClip comboDisappearSound;  // Nouveau son pour la disparition des images de combo
+    [SerializeField] public AudioClip scoreIncreaseSound;  // Nouveau son pour l'augmentation du score
+    [SerializeField] public AudioClip timerIncreaseSound;  // Nouveau son pour l'augmentation du timer
     [Range(0f, 1f)]
     public float sfxVolume = 1f;  // Volume des effets sonores
     
@@ -113,7 +114,6 @@ public class AudioManager : MonoBehaviour
 
     public void PlayCorrect()
     {
-        StopWantedSelectionSound(); // Arrêter le son de sélection avant de jouer le son correct
         PlaySound(correctSound);
     }
 
@@ -132,20 +132,12 @@ public class AudioManager : MonoBehaviour
         PlaySound(playButtonSound);
     }
 
-    public void PlayWantedSelection()
+    public void PlayWantedSelectionSound()
     {
-        if (wantedSelectionSound != null)
+        if (wantedSelectionSource && wantedSelectionSound)
         {
             wantedSelectionSource.clip = wantedSelectionSound;
             wantedSelectionSource.Play();
-        }
-    }
-
-    public void StopWantedSelectionSound()
-    {
-        if (wantedSelectionSource != null && wantedSelectionSource.isPlaying)
-        {
-            wantedSelectionSource.Stop();
         }
     }
 
@@ -163,10 +155,15 @@ public class AudioManager : MonoBehaviour
     {
         PlaySound(scoreIncreaseSound);
     }
+    
+    public void PlayTimerIncreaseSound()
+    {
+        PlaySound(timerIncreaseSound);
+    }
 
     private void PlaySound(AudioClip clip)
     {
-        if (clip != null)
+        if (audioSource && clip)
         {
             audioSource.PlayOneShot(clip, sfxVolume);
         }

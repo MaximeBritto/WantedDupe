@@ -239,7 +239,7 @@ public class GameManager : MonoBehaviour
         
         isSelectingNewWanted = true;
         
-        AudioManager.Instance?.PlayWantedSelection();
+        AudioManager.Instance?.PlayWantedSelectionSound();
         wantedCharacter = character;
         
         // Notifier les abonnés du changement (déclenche la roulette UI)
@@ -267,7 +267,13 @@ public class GameManager : MonoBehaviour
         // Le score réel continue d'augmenter de 1
         internalScore += scorePerCorrectClick;
         
-        timeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
+        // Sauvegarder l'ancien temps restant
+        float oldTimeRemaining = timeRemaining;
+        // Calculer le nouveau temps restant (sans l'appliquer directement)
+        float newTimeRemaining = Mathf.Min(timeRemaining + 5f, maxTime);
+        
+        // Démarrer l'animation d'incrémentation du timer
+        StartCoroutine(AnimateTimerIncrease(oldTimeRemaining, newTimeRemaining));
         
         // Vérifier si une sélection de wanted est déjà en cours
         if (isSelectingNewWanted)
@@ -291,6 +297,29 @@ public class GameManager : MonoBehaviour
                 Debug.LogWarning("GameManager: GridManager a déjà une roulette active - Création d'un nouveau wanted ignorée");
             }
         }
+    }
+    
+    private IEnumerator AnimateTimerIncrease(float startTime, float endTime)
+    {
+        // Si pas de temps ajouté, on ne fait rien
+        if (Mathf.Approximately(startTime, endTime))
+            yield break;
+            
+        // Pour chaque seconde ajoutée
+        for (float currentTime = startTime + 1; currentTime <= endTime; currentTime += 1f)
+        {
+            // Mettre à jour le temps affiché
+            timeRemaining = currentTime;
+            
+            // Jouer un son de tick pour chaque seconde ajoutée
+            AudioManager.Instance?.PlayTimerIncreaseSound();
+            
+            // Attendre un court délai entre chaque incrémentation
+            yield return new WaitForSeconds(0.15f);
+        }
+        
+        // S'assurer que le temps final est exactement celui calculé
+        timeRemaining = endTime;
     }
 
     // Nouvelle méthode pour réinitialiser le combo après l'animation

@@ -86,6 +86,9 @@ public class CharacterCard : MonoBehaviour
 
     private IEnumerator HandleCorrectClick()
     {
+        // Arrêter immédiatement le timer
+        GameManager.Instance.PauseGame();
+        
         // Stocker la position actuelle et l'échelle de la carte
         Vector3 originalPosition = transform.position;
         Vector3 originalLocalPosition = transform.localPosition;

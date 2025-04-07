@@ -81,6 +81,7 @@ public class UIManager : MonoBehaviour
 
     private Vector2 timerInitialPosition;
     private AdMobAdsScript adMobAdsScript;
+    private float prevTimeRemaining = 0;
 
     private void Awake()
     {
@@ -214,10 +215,48 @@ public class UIManager : MonoBehaviour
         }
         else
         {
+            // Vérifier si le temps a augmenté depuis la dernière frame
+            if (prevTimeRemaining > 0 && timeRemaining > prevTimeRemaining && 
+                Mathf.FloorToInt(timeRemaining) > Mathf.FloorToInt(prevTimeRemaining))
+            {
+                // Animer le timer quand il augmente
+                AnimateTimerIncrease();
+            }
+            
             timerText.color = Color.white;
-            DOTween.Kill("TimerShake");
-            timerText.rectTransform.anchoredPosition = timerInitialPosition;
+            if (!DOTween.IsTweening(timerText.transform) || DOTween.IsTweening("TimerShake"))
+            {
+                DOTween.Kill("TimerShake");
+                timerText.rectTransform.anchoredPosition = timerInitialPosition;
+            }
         }
+        
+        // Sauvegarder le temps actuel pour comparer à la prochaine frame
+        prevTimeRemaining = timeRemaining;
+    }
+    
+    private void AnimateTimerIncrease()
+    {
+        // Arrêter toute animation en cours sur le timer
+        DOTween.Kill(timerText.transform);
+        
+        // Changer la couleur du timer en vert pour indiquer le bonus
+        timerText.color = Color.green;
+        
+        // Créer une séquence d'animation
+        Sequence seq = DOTween.Sequence();
+        
+        // Agrandir légèrement le texte
+        seq.Append(timerText.transform.DOScale(1.3f, 0.15f).SetEase(Ease.OutBack))
+            .Append(timerText.transform.DOScale(1f, 0.1f));
+        
+        // Ajouter un petit rebond
+        seq.Join(timerText.rectTransform.DOShakePosition(0.2f, 5f, 3, 90, false, true));
+        
+        // Revenir à la couleur blanche après l'animation
+        seq.OnComplete(() => {
+            timerText.color = Color.white;
+        });
     }
 
     // Méthode appelée par GridManager quand sa roulette démarre
