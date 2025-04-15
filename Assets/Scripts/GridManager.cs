@@ -78,14 +78,73 @@ public class GridManager : MonoBehaviour
         public int maxCards;
         public float moveSpeed;
         public GridState[] possibleStates;
+        
+        [Header("Infinite Difficulty")]
+        [Tooltip("Si activé, la vitesse augmentera progressivement après chaque manche")]
+        public bool infiniteDifficultyEnabled = false;
+        [Tooltip("Augmentation de vitesse après chaque manche")]
+        public float speedIncrementPerRound = 2f;
 
         [Header("Column Specific Settings (Only used if state is Columns or ColumnsMoving)")]
         public int fixedColumns = 2;
         public float fixedColumnSpacing = 150f;
+        public float columnsMovementSpeed = 1.2f;
+        public int minCardsColumns = 6;
+        public int maxCardsColumns = 14;
 
         [Header("Wave Wrap Around Settings")]
         [Range(1, 10)]
         public int waveWrapAroundMaxRows = 3;
+        public float waveWrapAroundSpeed = 1.5f;
+        public int minCardsWaveWrapAround = 8;
+        public int maxCardsWaveWrapAround = 16;
+
+        [Header("Circular Movement Settings")]
+        [Range(0.5f, 5f)]
+        public float circularMovementSpeed = 1f;
+        public int minCardsCircularMovement = 5;
+        public int maxCardsCircularMovement = 12;
+
+        [Header("Fast Movement Settings")]
+        [Range(0.5f, 10f)]
+        public float fastMovementSpeed = 2f;
+        public int minCardsFastMovement = 8;
+        public int maxCardsFastMovement = 15;
+
+        [Header("Slow Movement Settings")]
+        [Range(0.1f, 2f)]
+        public float slowMovementSpeed = 0.7f;
+        public int minCardsSlowMovement = 4;
+        public int maxCardsSlowMovement = 10;
+
+        [Header("Aligned Movement Settings")]
+        public float alignedMovementSpeed = 1.3f;
+        public int minCardsAlignedMovement = 5;
+        public int maxCardsAlignedMovement = 12;
+
+        [Header("Pulsing Movement Settings")]
+        public float pulsingMovementSpeed = 1.8f;
+        public int minCardsPulsingMovement = 6;
+        public int maxCardsPulsingMovement = 12;
+
+        [Header("Wave Movement Settings")]
+        public float waveMovementSpeed = 1.5f;
+        public int minCardsWaveMovement = 7;
+        public int maxCardsWaveMovement = 14;
+
+        [Header("Quantum Teleport Settings")]
+        public float quantumTeleportSpeed = 1.7f;
+        public int minCardsQuantumTeleport = 8;
+        public int maxCardsQuantumTeleport = 16;
+
+        [Header("Gravity Wells Settings")]
+        public float gravityWellsSpeed = 1.4f;
+        public int minCardsGravityWells = 7;
+        public int maxCardsGravityWells = 15;
+
+        [Header("Static Settings")]
+        public int minCardsStatic = 4;
+        public int maxCardsStatic = 9;
 
         [Header("Only One Color")]
         public bool onlyOneColor;
@@ -228,8 +287,57 @@ public class GridManager : MonoBehaviour
         // Détermine la transform parent à utiliser (GameBoard si disponible, sinon gridContainer)
         Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : gridContainer;
 
-        int numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
-        Debug.Log($"Initialisation d'une grille avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        int numberOfCards;
+        // Utiliser les variables spécifiques en fonction de l'état actuel
+        if (currentState == GridState.CircularAligned || currentState == GridState.CircularAlignedMoving) {
+            numberOfCards = Random.Range(currentLevel.minCardsCircularMovement, currentLevel.maxCardsCircularMovement + 1);
+            Debug.Log($"Initialisation d'une grille circulaire avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        } 
+        // Utiliser les variables spécifiques au mouvement rapide si l'état actuel est FastMoving
+        else if (currentState == GridState.FastMoving) {
+            numberOfCards = Random.Range(currentLevel.minCardsFastMovement, currentLevel.maxCardsFastMovement + 1);
+            Debug.Log($"Initialisation d'une grille FastMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.SlowMoving) {
+            numberOfCards = Random.Range(currentLevel.minCardsSlowMovement, currentLevel.maxCardsSlowMovement + 1);
+            Debug.Log($"Initialisation d'une grille SlowMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.AlignedMoving || currentState == GridState.Aligned) {
+            numberOfCards = Random.Range(currentLevel.minCardsAlignedMovement, currentLevel.maxCardsAlignedMovement + 1);
+            Debug.Log($"Initialisation d'une grille Aligned/AlignedMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.ColumnsMoving || currentState == GridState.Columns) {
+            numberOfCards = Random.Range(currentLevel.minCardsColumns, currentLevel.maxCardsColumns + 1);
+            Debug.Log($"Initialisation d'une grille Columns/ColumnsMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.PulsingMoving) {
+            numberOfCards = Random.Range(currentLevel.minCardsPulsingMovement, currentLevel.maxCardsPulsingMovement + 1);
+            Debug.Log($"Initialisation d'une grille PulsingMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.WaveMoving) {
+            numberOfCards = Random.Range(currentLevel.minCardsWaveMovement, currentLevel.maxCardsWaveMovement + 1);
+            Debug.Log($"Initialisation d'une grille WaveMoving avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.WaveWrapAround) {
+            numberOfCards = Random.Range(currentLevel.minCardsWaveWrapAround, currentLevel.maxCardsWaveWrapAround + 1);
+            Debug.Log($"Initialisation d'une grille WaveWrapAround avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.QuantumTeleport) {
+            numberOfCards = Random.Range(currentLevel.minCardsQuantumTeleport, currentLevel.maxCardsQuantumTeleport + 1);
+            Debug.Log($"Initialisation d'une grille QuantumTeleport avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.GravityWells) {
+            numberOfCards = Random.Range(currentLevel.minCardsGravityWells, currentLevel.maxCardsGravityWells + 1);
+            Debug.Log($"Initialisation d'une grille GravityWells avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else if (currentState == GridState.Static) {
+            numberOfCards = Random.Range(currentLevel.minCardsStatic, currentLevel.maxCardsStatic + 1);
+            Debug.Log($"Initialisation d'une grille Static avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
+        else {
+            numberOfCards = Random.Range(currentLevel.minCards, currentLevel.maxCards + 1);
+            Debug.Log($"Initialisation d'une grille avec {numberOfCards} cartes (arrangeCards={shouldArrangeCards})");
+        }
 
         // Choix du sprite pour le wanted
         Sprite wantedSprite = GameManager.Instance.GetRandomSprite();
@@ -565,7 +673,7 @@ public class GridManager : MonoBehaviour
                 foreach (var card in cards)
                 {
                     if (card == null) continue;
-                    StartContinuousCardMovement(card, currentLevel.moveSpeed);
+                    StartContinuousCardMovement(card, currentLevel.slowMovementSpeed);
                 }
                 break;
                 
@@ -574,7 +682,7 @@ public class GridManager : MonoBehaviour
                 foreach (var card in cards)
                 {
                     if (card == null) continue;
-                    StartContinuousCardMovement(card, currentLevel.moveSpeed * 1.5f);
+                    StartContinuousCardMovement(card, currentLevel.fastMovementSpeed);
                 }
                 break;
                 
@@ -632,6 +740,9 @@ public class GridManager : MonoBehaviour
             Debug.LogWarning("Tentative de démarrer CreateNewWanted alors qu'une roulette est déjà active!");
             return;
         }
+        
+        // Augmenter la vitesse si le mode difficulté infinie est activé
+        IncreaseSpeedForInfiniteDifficulty();
         
         StartCoroutine(HideCardsAndStartRoulette());
     }
@@ -870,6 +981,7 @@ public class GridManager : MonoBehaviour
         {
             case GridState.Aligned:
                 Debug.Log("Arrangeant les cartes en ligne");
+                StopAllCardMovements(); // S'assurer qu'aucun mouvement n'est actif
                 ArrangeCardsInLine();
                 break;
             case GridState.Columns:
@@ -948,6 +1060,9 @@ public class GridManager : MonoBehaviour
 
     private void ArrangeCardsInLine()
     {
+        Debug.Log("DÉBUT ArrangeCardsInLine - Positionnement des cartes en grille ordonnée");
+        StopAllCardMovements(); // S'assurer qu'aucun mouvement précédent n'interfère
+        
         int totalCards = cards.Count;
         float availableWidth = playAreaWidth * 0.9f;
         int maxColumnsAllowed = Mathf.FloorToInt(availableWidth / horizontalSpacing);
@@ -957,13 +1072,26 @@ public class GridManager : MonoBehaviour
         float startX = -availableWidth / 2;
         float startY = (rows - 1) * verticalSpacing / 2;
 
+        Debug.Log($"ArrangeCardsInLine: totalCards={totalCards}, cardsPerRow={cardsPerRow}, rows={rows}, spacing={dynamicHorizontalSpacing}");
+
+        // Vérifier que nous avons des cartes à positionner
+        if (totalCards == 0 || cards == null)
+        {
+            Debug.LogError("ArrangeCardsInLine: Pas de cartes à positionner!");
+            return;
+        }
+
         for (int i = 0; i < totalCards; i++)
         {
+            if (cards[i] == null) continue;
+            
             int row = i / cardsPerRow;
             int col = i % cardsPerRow;
             float xPos = startX + col * dynamicHorizontalSpacing;
             float yPos = startY - row * verticalSpacing;
             RectTransform rectTransform = cards[i].GetComponent<RectTransform>();
+            
+            Debug.Log($"Card {i}: row={row}, col={col}, xPos={xPos}, yPos={yPos}");
             
             // Pour l'étape de positionnement initial, placer directement sans animation
             if (isCardAnimationRunning || isRouletteActive)
@@ -974,11 +1102,13 @@ public class GridManager : MonoBehaviour
             else
             {
                 // Animation normale
-            Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
-                .SetEase(Ease.OutBack);
-            activeTweens.Add(tween);
+                Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
+                    .SetEase(Ease.OutBack);
+                activeTweens.Add(tween);
             }
         }
+        
+        Debug.Log("FIN ArrangeCardsInLine - Toutes les cartes ont été positionnées en grille");
     }
     
     // Nouvelles méthodes pour positionner les cartes sans démarrer le mouvement
@@ -1194,7 +1324,7 @@ public class GridManager : MonoBehaviour
             float randomPhase = Random.Range(0f, Mathf.PI * 2);
             float amplitude = Random.Range(20f, 40f); // Amplitude de l'ondulation
             float frequency = Random.Range(0.8f, 1.2f); // Fréquence de l'ondulation
-            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.moveSpeed; // Vitesse de déplacement horizontal
+            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.waveMovementSpeed; // Vitesse de déplacement horizontal
             
             // Créer une séquence d'animation qui ne se termine jamais
             Sequence waveSequence = DOTween.Sequence();
@@ -1206,7 +1336,7 @@ public class GridManager : MonoBehaviour
                     if (card == null || rectTransform == null) return;
                     
                     // Calculer le mouvement ondulant en fonction du temps
-                    float time = Time.time * frequency * currentLevel.moveSpeed;
+                    float time = Time.time * frequency * currentLevel.waveMovementSpeed;
                     float wave = amplitude * Mathf.Sin(time + randomPhase);
                     
                     // Calculer le mouvement horizontal
@@ -1236,7 +1366,7 @@ public class GridManager : MonoBehaviour
             float randomPhase = Random.Range(0f, Mathf.PI * 2);
             float amplitude = Random.Range(20f, 40f); // Amplitude de l'ondulation
             float frequency = Random.Range(0.8f, 1.2f); // Fréquence de l'ondulation
-            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.moveSpeed; // Vitesse de déplacement horizontal
+            float horizontalSpeed = Random.Range(50f, 100f) * currentLevel.waveWrapAroundSpeed; // Vitesse de déplacement horizontal
             
             // Créer une séquence d'animation qui ne se termine jamais
             Sequence waveSequence = DOTween.Sequence();
@@ -1248,7 +1378,7 @@ public class GridManager : MonoBehaviour
                     if (card == null || rectTransform == null) return;
                     
                     // Calculer le mouvement ondulant en fonction du temps
-                    float time = Time.time * frequency * currentLevel.moveSpeed;
+                    float time = Time.time * frequency * currentLevel.waveWrapAroundSpeed;
                     float wave = amplitude * Mathf.Sin(time + randomPhase);
                     
                     // Calculer le mouvement horizontal avec wrap around
@@ -1399,7 +1529,7 @@ public class GridManager : MonoBehaviour
                 : -startX - (col * horizontalSpacing) - rowOffset;
             rectTransform.anchoredPosition = new Vector2(xPos, yPos);
 
-            float moveSpeed = 100f * currentLevel.moveSpeed;
+            float moveSpeed = 100f * currentLevel.alignedMovementSpeed;
             Sequence sequence = DOTween.Sequence()
                 .SetLoops(-1)
                 .SetUpdate(true)
@@ -1503,7 +1633,7 @@ public class GridManager : MonoBehaviour
         {
             int capturedCol = col;
             bool moveDown = (capturedCol % 2 == 0);
-            float speed = 100f * currentLevel.moveSpeed;
+            float speed = 100f * currentLevel.columnsMovementSpeed;
             Sequence seq = DOTween.Sequence()
                 .SetLoops(-1)
                 .SetUpdate(true)
@@ -1655,7 +1785,7 @@ public class GridManager : MonoBehaviour
                 activeTweens.Add(moveTween);
                 if (enableRotation)
                 {
-                    float rotationSpeed = 100f * currentLevel.moveSpeed * (circle % 2 == 0 ? 1 : -1);
+                    float rotationSpeed = 100f * currentLevel.circularMovementSpeed * (circle % 2 == 0 ? 1 : -1);
                     Sequence seq = DOTween.Sequence()
                         .SetLoops(-1)
                         .SetUpdate(true)
@@ -1770,7 +1900,7 @@ public class GridManager : MonoBehaviour
             if (card == null) continue;
             
             // Démarrer le mouvement avec une vitesse ajustée
-            float moveSpeed = currentLevel.moveSpeed;
+            float moveSpeed = currentLevel.pulsingMovementSpeed;
             StartContinuousCardMovement(card, moveSpeed);
             
             // N'ajouter l'effet de pulsation qu'aux cartes qui ne sont pas le wanted
@@ -1884,6 +2014,35 @@ public class GridManager : MonoBehaviour
     private void OnScoreChanged(float newScore)
     {
         UpdateDifficultyOnScoreChange();
+    }
+
+    // Nouvelle méthode pour augmenter la vitesse en mode difficulté infinie
+    public void IncreaseSpeedForInfiniteDifficulty()
+    {
+        if (!currentLevel.infiniteDifficultyEnabled)
+            return;
+            
+        Debug.Log("Mode difficulté infinie: Augmentation de la vitesse");
+        
+        float speedIncrement = currentLevel.speedIncrementPerRound;
+        const float MAX_SPEED = 5.0f;
+        
+        // Augmenter la vitesse de base tout en la limitant à MAX_SPEED
+        currentLevel.moveSpeed = Mathf.Min(currentLevel.moveSpeed + speedIncrement, MAX_SPEED);
+        
+        // Augmenter les vitesses spécifiques aux patterns
+        currentLevel.circularMovementSpeed = Mathf.Min(currentLevel.circularMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.fastMovementSpeed = Mathf.Min(currentLevel.fastMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.slowMovementSpeed = Mathf.Min(currentLevel.slowMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.alignedMovementSpeed = Mathf.Min(currentLevel.alignedMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.columnsMovementSpeed = Mathf.Min(currentLevel.columnsMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.pulsingMovementSpeed = Mathf.Min(currentLevel.pulsingMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.waveMovementSpeed = Mathf.Min(currentLevel.waveMovementSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.waveWrapAroundSpeed = Mathf.Min(currentLevel.waveWrapAroundSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.quantumTeleportSpeed = Mathf.Min(currentLevel.quantumTeleportSpeed + speedIncrement, MAX_SPEED);
+        currentLevel.gravityWellsSpeed = Mathf.Min(currentLevel.gravityWellsSpeed + speedIncrement, MAX_SPEED);
+        
+        Debug.Log($"Vitesses augmentées de {speedIncrement}. Nouvelle vitesse de base: {currentLevel.moveSpeed}");
     }
 
     private void UpdateDifficultyOnScoreChange()
@@ -2060,7 +2219,7 @@ public class GridManager : MonoBehaviour
         });
         
         // Intervalle entre les téléportations en masse
-        globalTeleportSequence.AppendInterval(1.5f / currentLevel.moveSpeed);
+        globalTeleportSequence.AppendInterval(1.5f / currentLevel.quantumTeleportSpeed);
         
         activeTweens.Add(globalTeleportSequence);
         
@@ -2069,7 +2228,7 @@ public class GridManager : MonoBehaviour
         {
             if (card == null) continue;
             // Mouvement très lent pour mieux voir les téléportations
-            StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.4f);
+            StartContinuousCardMovement(card, currentLevel.quantumTeleportSpeed * 0.4f);
         }
     }
 
@@ -2154,7 +2313,7 @@ public class GridManager : MonoBehaviour
             if (card != null && card.gameObject.activeInHierarchy)
             {
                 // Mouvement lent pour mieux voir les téléportations suivantes
-                StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.4f);
+                StartContinuousCardMovement(card, currentLevel.quantumTeleportSpeed * 0.4f);
             }
         });
     }
@@ -2191,7 +2350,7 @@ public class GridManager : MonoBehaviour
         foreach (var card in cards)
         {
             if (card == null) continue;
-            StartContinuousCardMovement(card, currentLevel.moveSpeed * 0.3f);
+            StartContinuousCardMovement(card, currentLevel.gravityWellsSpeed * 0.3f);
         }
         
         // Créer une séquence pour gérer les puits gravitationnels
@@ -2262,7 +2421,7 @@ public class GridManager : MonoBehaviour
         } while (attempts < 10);
         
         // Force gravitationnelle aléatoire (positive = attraction, négative = répulsion)
-        float strength = Random.Range(0.7f, 1.5f) * currentLevel.moveSpeed;
+        float strength = Random.Range(0.7f, 1.5f) * currentLevel.gravityWellsSpeed;
         if (Random.value < 0.3f) strength *= -1; // 30% de chance d'être répulsif
         
         // Durée de vie du puits gravitationnel
