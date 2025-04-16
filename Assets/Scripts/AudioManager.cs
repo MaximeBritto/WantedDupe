@@ -21,8 +21,6 @@ public class AudioManager : MonoBehaviour
     public AudioClip backgroundMusic;
     [Range(0f, 1f)]
     public float musicVolume = 0.5f;  // Volume de la musique
-    [Range(1f, 2f)]
-    public float maxPitch = 1.5f;  // Pitch maximum quand le temps est proche de 0
     
     [Header("Timer Sound")]
     public AudioClip timerTickSound;  // Son pour chaque seconde qui passe
@@ -99,16 +97,8 @@ public class AudioManager : MonoBehaviour
                 lastTickTime = currentTime;
             }
 
-            // Logique existante pour le pitch de la musique
-            if (timeRemaining > 20f)
-            {
-                musicSource.pitch = 1f;
-            }
-            else
-            {
-                float pitchFactor = 1f - (timeRemaining / 20f);
-                musicSource.pitch = Mathf.Lerp(1f, maxPitch, pitchFactor);
-            }
+            // La musique garde une vitesse constante
+            musicSource.pitch = 1f;
         }
     }
 

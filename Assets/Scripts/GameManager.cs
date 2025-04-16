@@ -39,9 +39,11 @@ public class GameManager : MonoBehaviour
 
     [Header("Score Settings")]
     public int maxComboMultiplier = 5;
-    public int currentComboCount { get; private set; } = 0;
-    public float displayedScore { get; private set; } = 0f;
-    public float internalScore { get; private set; } = 0f;
+    public float displayedScore = 0f;
+    public float bestScore = 0f;  // Nouvelle variable pour le meilleur score
+    private float internalScore = 0f;
+    public float InternalScore { get { return internalScore; } }  // Propriété publique pour accéder à internalScore
+    private float currentComboCount = 0;
     
     // Indique si le joueur vient de cliquer sur une mauvaise carte
     public bool justClickedWrongCard { get; private set; } = false;
@@ -75,6 +77,20 @@ public class GameManager : MonoBehaviour
     {
         // Récupérer la référence à AdMobAdsScript
         adMobAdsScript = FindObjectOfType<AdMobAdsScript>();
+        
+        // Charger le meilleur score sauvegardé
+        LoadBestScore();
+    }
+
+    private void LoadBestScore()
+    {
+        bestScore = PlayerPrefs.GetFloat("BestScore", 0f);
+    }
+
+    private void SaveBestScore()
+    {
+        PlayerPrefs.SetFloat("BestScore", bestScore);
+        PlayerPrefs.Save();
     }
 
     public void StartGame()
@@ -134,6 +150,13 @@ public class GameManager : MonoBehaviour
 
         AudioManager.Instance?.StopBackgroundMusic();
 
+        // Vérifier et mettre à jour le meilleur score
+        if (displayedScore > bestScore)
+        {
+            bestScore = displayedScore;
+            SaveBestScore();
+        }
+        
         // Vérifier si c'est la 2ème partie
         if (gameCount % 2 == 0 && adMobAdsScript != null)
         {

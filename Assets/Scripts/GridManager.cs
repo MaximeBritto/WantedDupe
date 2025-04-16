@@ -899,7 +899,7 @@ public class GridManager : MonoBehaviour
 
     private void UpdateDifficultyLevel()
     {
-        float currentScore = GameManager.Instance.internalScore;
+        float currentScore = GameManager.Instance.InternalScore;
         DifficultyLevel newLevel = difficultyLevels[0];
         for (int i = difficultyLevels.Length - 1; i >= 0; i--)
         {

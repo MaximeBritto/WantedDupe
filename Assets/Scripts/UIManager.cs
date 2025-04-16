@@ -24,6 +24,7 @@ public class UIManager : MonoBehaviour
     [Header("Game Info")]
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI timerText;
+    public TextMeshProUGUI bestScoreText;  // Nouveau texte pour le meilleur score
     public RectTransform gameInfoPanel;
     
     [Header("Panels")]
@@ -554,11 +555,16 @@ public class UIManager : MonoBehaviour
         
         if (GameManager.Instance != null)
         {
-            // Afficher le score tel quel, sans division
+            // Afficher le score actuel
             finalScoreText.text = $"Score : {GameManager.Instance.displayedScore}";
+            
+            // Afficher le meilleur score
+            if (bestScoreText != null)
+            {
+                bestScoreText.text = $"Best Score : {GameManager.Instance.bestScore}";
+            }
         }
 
-        // Afficher le bouton continue uniquement si c'est une nouvelle partie
         if (continueButton != null)
         {
             continueButton.gameObject.SetActive(isNewGame);
@@ -569,6 +575,13 @@ public class UIManager : MonoBehaviour
     {
         isNewGame = true;  // Réinitialiser le flag de nouvelle partie
         hasUsedContinue = false;  // Réinitialiser le flag d'utilisation du continue
+        
+        // Mettre à jour l'affichage du meilleur score
+        if (bestScoreText != null && GameManager.Instance != null)
+        {
+            bestScoreText.text = $"Meilleur Score : {GameManager.Instance.bestScore}";
+        }
+        
         GameManager.Instance.StartGame();
     }
 
