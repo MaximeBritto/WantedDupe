@@ -2,8 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using DG.Tweening;
+using UnityEngine.EventSystems;
 
-public class CharacterCard : MonoBehaviour
+public class CharacterCard : MonoBehaviour, IPointerDownHandler
 {
     [Header("Character Info")]
     public string characterName;
@@ -14,6 +15,7 @@ public class CharacterCard : MonoBehaviour
     public Button cardButton;
 
     private CardAnimation cardAnimation;
+    private bool alreadyClicked = false;
 
     private void Awake()
     {
@@ -57,7 +59,30 @@ public class CharacterCard : MonoBehaviour
         characterImage.sprite = characterSprite;
     }
 
-    private bool alreadyClicked = false;
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (alreadyClicked) return; // On ignore les clics ultérieurs
+
+        if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
+            return;
+
+        if (GameManager.Instance.wantedCharacter == this)
+        {
+            // Logique de réussite - Marquer cette carte spécifique comme cliquée
+            alreadyClicked = true;
+            AudioManager.Instance.PlayCorrect();
+            StartCoroutine(HandleCorrectClick());
+        }
+        else
+        {
+            // Logique d'erreur
+            // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            cardAnimation.PlayWrongAnimation();
+            AudioManager.Instance.PlayWrong();
+            GameManager.Instance.ApplyTimePenalty();
+            // Ne PAS arrêter le mouvement de la carte
+        }
+    }
 
     private void OnCardClicked()
     {
