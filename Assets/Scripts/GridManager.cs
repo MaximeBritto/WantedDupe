@@ -214,6 +214,39 @@ public class GridManager : MonoBehaviour
             playAreaWidth = gameBoardRect.rect.width;
             playAreaHeight = gameBoardRect.rect.height;
         }
+        
+        // Vérifier périodiquement que la carte wanted est visible
+        StartCoroutine(CheckWantedVisibilityPeriodically());
+    }
+
+    // Coroutine pour vérifier la visibilité de la carte wanted régulièrement
+    private IEnumerator CheckWantedVisibilityPeriodically()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(0.5f);
+            
+            // Vérifier si le jeu est actif et si la roulette n'est pas en cours
+            if (wantedCard == null || IsRouletteActive || !GameManager.Instance.isGameActive)
+            {
+                continue;
+            }
+            
+            // Vérifier si la carte est suffisamment visible
+            if (!wantedCard.IsPartiallyVisible())
+            {
+                // Déplacer légèrement la carte pour la rendre visible
+                RectTransform rt = wantedCard.GetComponent<RectTransform>();
+                Vector2 newPosition = rt.anchoredPosition + new Vector2(Random.Range(-50f, 50f), Random.Range(-50f, 50f));
+                
+                // S'assurer que la carte reste dans les limites du plateau
+                newPosition.x = Mathf.Clamp(newPosition.x, -playAreaWidth/2 + 100, playAreaWidth/2 - 100);
+                newPosition.y = Mathf.Clamp(newPosition.y, -playAreaHeight/2 + 100, playAreaHeight/2 - 100);
+                
+                // Appliquer la nouvelle position
+                rt.anchoredPosition = newPosition;
+            }
+        }
     }
 
     private void AdjustForMobileIfNeeded()
@@ -363,6 +396,8 @@ public class GridManager : MonoBehaviour
         wantedRt.anchoredPosition = GetValidCardPosition();
         // Initialise le wanted avec "Wanted" comme characterName
         wantedCardComponent.Initialize("Wanted", wantedSprite);
+        // Marquer cette carte comme étant la carte recherchée
+        wantedCardComponent.SetAsWanted(true);
         // Place le wanted au-dessus des autres cartes
         wantedObj.transform.SetAsLastSibling();
         wantedCard = wantedCardComponent;
@@ -390,6 +425,8 @@ public class GridManager : MonoBehaviour
                 } while (randomSprite == wantedSprite);
                 cardComponent.Initialize("Card_" + i, randomSprite);
             }
+            // S'assurer que les cartes normales sont au-dessus de la carte wanted
+            cardComponent.SetAsWanted(false);
             cards.Add(cardComponent);
         }
 
@@ -443,6 +480,7 @@ public class GridManager : MonoBehaviour
             {
                 // Convertir la première carte en wanted
                 cards[0].Initialize("Wanted", GameManager.Instance.GetRandomSprite());
+                cards[0].SetAsWanted(true);
                 wantedCard = cards[0];
             }
             else
@@ -457,6 +495,7 @@ public class GridManager : MonoBehaviour
             Debug.LogWarning($"Trouvé {wantedCards.Count} cartes wanted. Conservation uniquement de la première.");
             
             wantedCard = wantedCards[0];
+            wantedCard.SetAsWanted(true);
             
             // Renommer les autres cartes wanted
             for (int i = 1; i < wantedCards.Count; i++)
@@ -468,12 +507,14 @@ public class GridManager : MonoBehaviour
                 } while (randomSprite == wantedCard.characterSprite);
                 
                 wantedCards[i].Initialize("Card_" + (cards.Count + i), randomSprite);
+                wantedCards[i].SetAsWanted(false);
             }
         }
         else
         {
-            // Un seul wanted trouvé, c'est normal
+            // Un seul wanted trouvé, c'est le comportement normal
             wantedCard = wantedCards[0];
+            wantedCard.SetAsWanted(true);
         }
     }
 

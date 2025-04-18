@@ -3683,7 +3683,7 @@ MonoBehaviour:
     minCards: 16
     maxCards: 16
     moveSpeed: 0.1
-    possibleStates: 01000000
+    possibleStates: 02000000
     infiniteDifficultyEnabled: 1
     speedIncrementPerRound: 0.3
     fixedColumns: 4
@@ -3719,8 +3719,8 @@ MonoBehaviour:
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
-    minCardsStatic: 4
-    maxCardsStatic: 9
+    minCardsStatic: 70
+    maxCardsStatic: 75
     onlyOneColor: 1
   - scoreThreshold: 3
     minCards: 20
@@ -4302,6 +4302,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gridManager: {fileID: 1162212314}
+  checkInterval: 0.5
+  minimumVisiblePercentage: 0.1
 --- !u!1 &1183338837
 GameObject:
   m_ObjectHideFlags: 0

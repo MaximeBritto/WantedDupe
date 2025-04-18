@@ -154,6 +154,7 @@ MonoBehaviour:
   spawnDuration: 0.3
   correctAnimationDuration: 0.3
   wrongAnimationDuration: 0.3
+  mobileAnimationScale: 0.8
 --- !u!1 &8098735427697818149
 GameObject:
   m_ObjectHideFlags: 0

@@ -16,6 +16,8 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
 
     private CardAnimation cardAnimation;
     private bool alreadyClicked = false;
+    private bool isWanted = false;
+    private Canvas cardCanvas;
 
     private void Awake()
     {
@@ -50,6 +52,14 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
             // Agrandir la zone de touch
             characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
         }
+
+        // Assurer que la carte a un Canvas pour gérer l'ordre d'affichage
+        cardCanvas = GetComponent<Canvas>();
+        if (cardCanvas == null)
+        {
+            cardCanvas = gameObject.AddComponent<Canvas>();
+            gameObject.AddComponent<GraphicRaycaster>();
+        }
     }
 
     public void Initialize(string name, Sprite sprite)
@@ -57,6 +67,77 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         characterName = name;
         characterSprite = sprite;
         characterImage.sprite = characterSprite;
+    }
+
+    // Méthode pour définir si cette carte est la carte recherchée
+    public void SetAsWanted(bool wanted)
+    {
+        isWanted = wanted;
+        
+        // Si c'est la carte recherchée, ajuster l'ordre d'affichage pour qu'elle soit derrière
+        if (isWanted)
+        {
+            SetCardRenderOrder(50); // Valeur suffisamment haute pour rester au-dessus du board
+        }
+        else
+        {
+            SetCardRenderOrder(51); // Valeur plus haute que la carte wanted
+        }
+    }
+
+    // Ajuster l'ordre d'affichage de la carte
+    public void SetCardRenderOrder(int orderValue)
+    {
+        if (cardCanvas != null)
+        {
+            cardCanvas.overrideSorting = true;
+            cardCanvas.sortingOrder = orderValue;
+        }
+    }
+
+    // Utilisé pour vérifier si la carte est au moins partiellement visible et cliquable
+    public bool IsPartiallyVisible()
+    {
+        // Collecter toutes les cartes qui pourraient chevaucher celle-ci
+        CharacterCard[] allCards = FindObjectsOfType<CharacterCard>();
+        RectTransform myRect = GetComponent<RectTransform>();
+        Rect myBounds = new Rect(myRect.position.x - myRect.rect.width/2, 
+                                myRect.position.y - myRect.rect.height/2, 
+                                myRect.rect.width, myRect.rect.height);
+        
+        // Surface totale et zone couverte
+        float myArea = myRect.rect.width * myRect.rect.height;
+        float coveredArea = 0f;
+        
+        foreach (CharacterCard otherCard in allCards)
+        {
+            if (otherCard == this) continue;
+            
+            RectTransform otherRect = otherCard.GetComponent<RectTransform>();
+            Rect otherBounds = new Rect(otherRect.position.x - otherRect.rect.width/2, 
+                                      otherRect.position.y - otherRect.rect.height/2, 
+                                      otherRect.rect.width, otherRect.rect.height);
+            
+            // Calculer l'intersection
+            Rect intersection = new Rect();
+            if (myBounds.Overlaps(otherBounds))
+            {
+                float xMin = Mathf.Max(myBounds.x, otherBounds.x);
+                float yMin = Mathf.Max(myBounds.y, otherBounds.y);
+                float xMax = Mathf.Min(myBounds.x + myBounds.width, otherBounds.x + otherBounds.width);
+                float yMax = Mathf.Min(myBounds.y + myBounds.height, otherBounds.y + otherBounds.height);
+                
+                intersection.x = xMin;
+                intersection.y = yMin;
+                intersection.width = xMax - xMin;
+                intersection.height = yMax - yMin;
+                
+                coveredArea += intersection.width * intersection.height;
+            }
+        }
+        
+        // Si plus de 90% est couvert, considérer comme non visible
+        return (coveredArea / myArea) < 0.9f;
     }
 
     public void OnPointerDown(PointerEventData eventData)
