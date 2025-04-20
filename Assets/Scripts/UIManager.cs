@@ -90,6 +90,42 @@ public class UIManager : MonoBehaviour
             Instance = this;
         else
             Destroy(gameObject);
+            
+        // Effectuer l'ajustement pour mobile dès l'Awake pour garantir qu'il est appliqué avant tout autre processus
+        isMobileDevice = Application.isMobilePlatform;
+        if (isMobileDevice)
+        {
+            AdjustUIForMobile();
+        }
+    }
+
+    // Nouvelle méthode pour configurer l'UI mobile avec un contrôle plus précis
+    private void AdjustUIForMobile()
+    {
+        // Configurer le wanted panel
+        finalWantedSize = mobileWantedSize;
+        finalWantedPosition = mobileWantedPosition;
+        
+        // Configurer spécifiquement le timer de façon moins invasive
+        if (timerText != null)
+        {
+            // Modifier seulement les paramètres critiques pour la visibilité
+            timerText.fontSize = 100; // Taille TRÈS grande pour le mobile
+            timerText.enableAutoSizing = false; // Désactiver l'auto-sizing
+            
+            // Augmenter l'échelle du timer
+            timerText.rectTransform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+            
+            // Log pour débogage
+            Debug.Log($"Timer configuré pour mobile: fontSize={timerText.fontSize}, scale={timerText.rectTransform.localScale}");
+        }
+        
+        // Configurer spécifiquement le score
+        if (scoreText != null)
+        {
+            scoreText.fontSize = 60;
+            scoreText.enableAutoSizing = false;
+        }
     }
 
     private void Start()
@@ -123,11 +159,8 @@ public class UIManager : MonoBehaviour
             gameBoardImage.color = new Color(0, 0, 0, 0.2f);
         }
 
+        // Déjà configuré dans Awake
         isMobileDevice = Application.isMobilePlatform;
-        if (isMobileDevice)
-        {
-            ConfigureForPortrait();
-        }
 
         if (SafeArea != null)
         {
@@ -193,6 +226,16 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance != null && GameManager.Instance.isGameActive)
         {
             UpdateUI();
+            
+            // Si nous sommes sur mobile, vérifier périodiquement l'affichage du timer
+            if (isMobileDevice && Time.frameCount % 60 == 0 && timerText != null)
+            {
+                // Vérifier si le timer semble trop petit
+                if (timerText.fontSize < 90 || timerText.rectTransform.localScale.x < 1.4f)
+                {
+                    FixTimerDisplay();
+                }
+            }
         }
     }
 
@@ -200,9 +243,24 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
         
+        // Mettre à jour le score
         scoreText.text = $"{GameManager.Instance.displayedScore}";
+        
+        // Mettre à jour le timer
         float timeRemaining = GameManager.Instance.timeRemaining;
-        timerText.text = $"{Mathf.CeilToInt(timeRemaining)}";
+        string timeText = $"{Mathf.CeilToInt(timeRemaining)}";
+        
+        // Appliquer le texte seulement s'il a changé pour éviter des rafraîchissements inutiles
+        if (timerText.text != timeText) {
+            timerText.text = timeText;
+            
+            // Sur mobile, vérifier que la taille de police est correcte après chaque mise à jour
+            if (isMobileDevice) {
+                if (timerText.fontSize < 90 || timerText.rectTransform.localScale.x < 1.4f) {
+                    FixTimerDisplay();
+                }
+            }
+        }
         
         if (timeRemaining <= 10f)
         {
@@ -225,7 +283,7 @@ public class UIManager : MonoBehaviour
             }
             
             timerText.color = Color.white;
-            if (!DOTween.IsTweening(timerText.transform) || DOTween.IsTweening("TimerShake"))
+            if (DOTween.IsTweening("TimerShake"))
             {
                 DOTween.Kill("TimerShake");
                 timerText.rectTransform.anchoredPosition = timerInitialPosition;
@@ -521,6 +579,13 @@ public class UIManager : MonoBehaviour
         if (uiCanvas != null)
         {
             uiCanvas.gameObject.SetActive(true);
+            
+            // Pour les appareils mobiles, corriger le timer au démarrage du jeu
+            if (isMobileDevice && timerText != null)
+            {
+                // Petit délai pour s'assurer que tout est initialisé
+                Invoke("FixTimerDisplay", 0.1f);
+            }
         }
 
         if (wantedPanel != null)
@@ -604,14 +669,6 @@ public class UIManager : MonoBehaviour
             };
             currentStateText.text = stateText;
         }
-    }
-
-    private void ConfigureForPortrait()
-    {
-        finalWantedSize = mobileWantedSize;
-        finalWantedPosition = mobileWantedPosition;
-        if (scoreText != null) scoreText.fontSize = 40;
-        if (timerText != null) timerText.fontSize = 40;
     }
 
     private void UpdateScoreText(float score)
@@ -722,5 +779,30 @@ public class UIManager : MonoBehaviour
             hasUsedContinue = true;
             isNewGame = false;  // Indiquer que ce n'est plus une nouvelle partie
         }
+    }
+
+    // Remplacer par une méthode plus sûre qui préserve les références
+    private void FixTimerDisplay()
+    {
+        if (timerText == null) return;
+        
+        Debug.Log("Correction de l'affichage du timer pour mobile");
+        
+        // Sauvegarder la valeur actuelle
+        string currentText = timerText.text;
+        
+        // Appliquer des paramètres pour rendre le timer plus visible
+        timerText.fontSize = 100; // Taille extrêmement grande
+        timerText.enableAutoSizing = false; // Désactiver l'auto-sizing
+        
+        // Augmenter l'échelle de tout l'objet timer
+        timerText.rectTransform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+        
+        // Remettre le texte (pour forcer un rafraîchissement)
+        timerText.text = currentText;
+        
+        // Forcer une mise à jour du layout
+        LayoutRebuilder.ForceRebuildLayoutImmediate(timerText.rectTransform);
+        Canvas.ForceUpdateCanvases();
     }
 }
