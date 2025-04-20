@@ -12,6 +12,10 @@ public class CardAnimation : MonoBehaviour
     [Header("Mobile Settings")]
     [SerializeField] private float mobileAnimationScale = 0.8f;
     
+    [Header("Tablet Settings")]
+    [SerializeField] private float tabletAnimationScale = 0.9f;
+    [SerializeField] private float tabletAnimationDurationMultiplier = 0.9f;
+    
     private RectTransform rectTransform;
     private Vector3 originalScale;
     private Vector3 originalPosition;
@@ -27,11 +31,40 @@ public class CardAnimation : MonoBehaviour
     {
         if (Application.isMobilePlatform)
         {
-            // Réduire l'amplitude des animations
-            correctAnimationDuration *= 0.8f;
-            wrongAnimationDuration *= 0.8f;
-            originalScale *= mobileAnimationScale;
+            // Vérifier si c'est une tablette
+            bool isTablet = IsTablet();
+            
+            if (isTablet)
+            {
+                // Réduire légèrement l'amplitude des animations pour tablettes
+                correctAnimationDuration *= tabletAnimationDurationMultiplier;
+                wrongAnimationDuration *= tabletAnimationDurationMultiplier;
+                originalScale *= tabletAnimationScale;
+            }
+            else
+            {
+                // Réduire l'amplitude des animations pour mobiles
+                correctAnimationDuration *= 0.8f;
+                wrongAnimationDuration *= 0.8f;
+                originalScale *= mobileAnimationScale;
+            }
         }
+    }
+    
+    // Méthode pour détecter les tablettes
+    private bool IsTablet()
+    {
+        // Vérifier si c'est un appareil mobile d'abord
+        if (!Application.isMobilePlatform)
+            return false;
+            
+        // Résolution minimum d'une tablette
+        float minTabletDiagonal = 1500f;
+        
+        // Calculer la diagonale en pixels
+        float screenDiagonal = Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
+        
+        return screenDiagonal >= minTabletDiagonal;
     }
 
     private void OnEnable()

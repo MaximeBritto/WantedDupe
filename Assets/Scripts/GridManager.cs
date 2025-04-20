@@ -28,6 +28,13 @@ public class GridManager : MonoBehaviour
     public float mobileCardScale = 0.8f;
     public float mobileSpacing = 80f;
 
+    [Header("Tablet Settings")]
+    public float tabletCardScale = 0.9f;
+    public float tabletSpacing = 120f;
+    public float tabletVerticalSpacing = 180f;
+    public float tabletBoardWidthMultiplier = 0.85f;
+    public float tabletBoardHeightMultiplier = 0.7f;
+
     [Header("Card Settings")]
     public float minCardDistance = 100f;
 
@@ -253,17 +260,57 @@ public class GridManager : MonoBehaviour
     {
         if (Application.isMobilePlatform)
         {
-            playAreaWidth = Screen.width * 0.9f;
-            playAreaHeight = Screen.height * 0.6f;
-            cardSpacing = mobileSpacing;
-            foreach (var card in cards)
+            // Vérifier si c'est une tablette
+            bool isTablet = IsTablet();
+            
+            if (isTablet)
             {
-                if (card != null)
+                Debug.Log("Ajustement pour tablette");
+                playAreaWidth = Screen.width * tabletBoardWidthMultiplier;
+                playAreaHeight = Screen.height * tabletBoardHeightMultiplier;
+                cardSpacing = tabletSpacing;
+                horizontalSpacing = tabletSpacing;
+                verticalSpacing = tabletVerticalSpacing;
+                
+                foreach (var card in cards)
                 {
-                    card.transform.localScale = Vector3.one * mobileCardScale;
+                    if (card != null)
+                    {
+                        card.transform.localScale = Vector3.one * tabletCardScale;
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("Ajustement pour mobile");
+                playAreaWidth = Screen.width * 0.9f;
+                playAreaHeight = Screen.height * 0.6f;
+                cardSpacing = mobileSpacing;
+                
+                foreach (var card in cards)
+                {
+                    if (card != null)
+                    {
+                        card.transform.localScale = Vector3.one * mobileCardScale;
+                    }
                 }
             }
         }
+    }
+    
+    // Méthode pour détecter les tablettes basée sur la taille d'écran
+    private bool IsTablet()
+    {
+        // Résolution minimum d'une tablette (en général 1280x720 ou plus)
+        float minTabletDiagonal = 1500f; // Valeur approximative pour identifier une tablette
+        
+        // Calculer la diagonale en pixels
+        float screenDiagonal = Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
+        
+        // Log pour le débogage
+        Debug.Log($"GridManager - Détection tablette: Diagonale écran = {screenDiagonal}px, Width = {Screen.width}, Height = {Screen.height}");
+        
+        return screenDiagonal >= minTabletDiagonal;
     }
 
     private Vector2 GetValidCardPosition()
@@ -1144,6 +1191,7 @@ public class GridManager : MonoBehaviour
         
         // Force la mise à jour du canvas
         Canvas.ForceUpdateCanvases();
+        
         
         Debug.Log("FIN ArrangeCardsInLine - Toutes les cartes ont été positionnées en grille");
     }

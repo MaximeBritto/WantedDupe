@@ -58,6 +58,16 @@ public class UIManager : MonoBehaviour
     public Vector2 mobileWantedSize = new Vector2(200, 300);
     public Vector2 mobileWantedPosition = new Vector2(0, 800);
 
+    [Header("Tablet Settings")]
+    public bool isTabletDevice;
+    public float tabletScaleFactor = 0.85f;
+    public Vector2 tabletWantedSize = new Vector2(300, 400);
+    public Vector2 tabletWantedPosition = new Vector2(0, 600);
+    public float tabletCardSpacing = 150f;
+    public float tabletTimerScale = 1.2f;
+    public float tabletTimerFontSize = 80f;
+    public float tabletScoreFontSize = 70f;
+
     [Header("Safe Area")]
     public GameObject SafeArea;
     public GameObject Board;
@@ -91,11 +101,72 @@ public class UIManager : MonoBehaviour
         else
             Destroy(gameObject);
             
-        // Effectuer l'ajustement pour mobile dès l'Awake pour garantir qu'il est appliqué avant tout autre processus
+        // Détecter le type d'appareil
         isMobileDevice = Application.isMobilePlatform;
-        if (isMobileDevice)
+        isTabletDevice = IsTablet();
+        
+        // Appliquer les ajustements appropriés
+        if (isTabletDevice)
+        {
+            AdjustUIForTablet();
+        }
+        else if (isMobileDevice)
         {
             AdjustUIForMobile();
+        }
+    }
+
+    // Détection des tablettes basée sur la taille d'écran
+    private bool IsTablet()
+    {
+        // Vérifier si c'est un appareil mobile d'abord
+        if (!Application.isMobilePlatform)
+            return false;
+            
+        // Résolution minimum d'une tablette (en général 1280x720 ou plus)
+        float minTabletDiagonal = 2200f; // Valeur approximative pour identifier une tablette
+        
+        // Calculer la diagonale en pixels
+        float screenDiagonal = Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
+        
+        // Log pour le débogage
+        Debug.Log($"Détection tablette: Diagonale écran = {screenDiagonal}px, Width = {Screen.width}, Height = {Screen.height}");
+        
+        return screenDiagonal >= minTabletDiagonal;
+    }
+
+    // Nouvelle méthode pour configurer l'UI tablette
+    private void AdjustUIForTablet()
+    {
+        Debug.Log("Configuration de l'interface pour tablette");
+        
+        // Configurer le wanted panel
+        finalWantedSize = tabletWantedSize;
+        finalWantedPosition = tabletWantedPosition;
+        
+        // Configurer le timer
+        if (timerText != null)
+        {
+            timerText.fontSize = tabletTimerFontSize;
+            timerText.enableAutoSizing = false;
+            timerText.rectTransform.localScale = new Vector3(tabletTimerScale, tabletTimerScale, tabletTimerScale);
+        }
+        
+        // Configurer le score
+        if (scoreText != null)
+        {
+            scoreText.fontSize = tabletScoreFontSize;
+            scoreText.enableAutoSizing = false;
+        }
+        
+        // Informer le GridManager des ajustements pour tablette
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            gridManager.playAreaWidth = Screen.width * 0.85f;
+            gridManager.playAreaHeight = Screen.height * 0.7f;
+            gridManager.cardSpacing = tabletCardSpacing;
+            gridManager.horizontalSpacing = tabletCardSpacing;
         }
     }
 
@@ -227,11 +298,22 @@ public class UIManager : MonoBehaviour
         {
             UpdateUI();
             
-            // Si nous sommes sur mobile, vérifier périodiquement l'affichage du timer
-            if (isMobileDevice && Time.frameCount % 60 == 0 && timerText != null)
+            // Si nous sommes sur mobile ou tablette, vérifier périodiquement l'affichage du timer
+            if ((isMobileDevice || isTabletDevice) && Time.frameCount % 60 == 0 && timerText != null)
             {
                 // Vérifier si le timer semble trop petit
-                if (timerText.fontSize < 90 || timerText.rectTransform.localScale.x < 1.4f)
+                bool needsFixing = false;
+                
+                if (isTabletDevice && (timerText.fontSize < tabletTimerFontSize || timerText.rectTransform.localScale.x < tabletTimerScale))
+                {
+                    needsFixing = true;
+                }
+                else if (isMobileDevice && (timerText.fontSize < 90 || timerText.rectTransform.localScale.x < 1.4f))
+                {
+                    needsFixing = true;
+                }
+                
+                if (needsFixing)
                 {
                     FixTimerDisplay();
                 }
@@ -786,17 +868,24 @@ public class UIManager : MonoBehaviour
     {
         if (timerText == null) return;
         
-        Debug.Log("Correction de l'affichage du timer pour mobile");
+        Debug.Log("Correction de l'affichage du timer");
         
         // Sauvegarder la valeur actuelle
         string currentText = timerText.text;
         
-        // Appliquer des paramètres pour rendre le timer plus visible
-        timerText.fontSize = 100; // Taille extrêmement grande
-        timerText.enableAutoSizing = false; // Désactiver l'auto-sizing
-        
-        // Augmenter l'échelle de tout l'objet timer
-        timerText.rectTransform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+        // Appliquer des paramètres selon le type d'appareil
+        if (isTabletDevice)
+        {
+            timerText.fontSize = tabletTimerFontSize;
+            timerText.enableAutoSizing = false;
+            timerText.rectTransform.localScale = new Vector3(tabletTimerScale, tabletTimerScale, tabletTimerScale);
+        }
+        else if (isMobileDevice)
+        {
+            timerText.fontSize = 100; // Taille extrêmement grande
+            timerText.enableAutoSizing = false;
+            timerText.rectTransform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+        }
         
         // Remettre le texte (pour forcer un rafraîchissement)
         timerText.text = currentText;

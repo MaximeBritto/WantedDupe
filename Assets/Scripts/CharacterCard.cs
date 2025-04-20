@@ -14,6 +14,9 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
     public Image characterImage;
     public Button cardButton;
 
+    [Header("Device Settings")]
+    public float tabletRaycastPadding = 15f;  // Ajustement pour les tablettes
+
     private CardAnimation cardAnimation;
     private bool alreadyClicked = false;
     private bool isWanted = false;
@@ -46,11 +49,23 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         
         cardAnimation = GetComponent<CardAnimation>();
         
-        // Ajuster la taille du collider pour mobile
+        // Ajuster la taille du collider pour mobile ou tablette
         if (Application.isMobilePlatform)
         {
-            // Agrandir la zone de touch
-            characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
+            // Détecter si c'est une tablette
+            bool isTablet = IsTablet();
+            
+            if (isTablet)
+            {
+                // Zone de touch plus précise pour tablette
+                characterImage.raycastPadding = new Vector4(tabletRaycastPadding, tabletRaycastPadding, tabletRaycastPadding, tabletRaycastPadding);
+                Debug.Log($"Raycast padding ajusté pour tablette: {tabletRaycastPadding}");
+            }
+            else
+            {
+                // Agrandir la zone de touch pour mobile
+                characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
+            }
         }
 
         // IMPORTANT: Ne pas créer de Canvas individuel
@@ -69,6 +84,22 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         // Assurer que l'objet est actif et visible
         gameObject.SetActive(true);
         characterImage.enabled = true;
+    }
+    
+    // Méthode pour détecter les tablettes
+    private bool IsTablet()
+    {
+        // Vérifier si c'est un appareil mobile d'abord
+        if (!Application.isMobilePlatform)
+            return false;
+            
+        // Résolution minimum d'une tablette
+        float minTabletDiagonal = 1500f;
+        
+        // Calculer la diagonale en pixels
+        float screenDiagonal = Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
+        
+        return screenDiagonal >= minTabletDiagonal;
     }
 
     public void Initialize(string name, Sprite sprite)
