@@ -957,7 +957,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &257771398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -965,12 +965,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 257771397}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f578cec68ef5c7a4db559f84fb40449a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  appId: 
+  appId: ca-app-pub-2031850231197911~8065656844
 --- !u!4 &257771399
 Transform:
   m_ObjectHideFlags: 0
