@@ -957,7 +957,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &257771398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -965,7 +965,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 257771397}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f578cec68ef5c7a4db559f84fb40449a, type: 3}
   m_Name: 
@@ -3640,7 +3640,7 @@ MonoBehaviour:
     minCards: 4
     maxCards: 4
     moveSpeed: 10
-    possibleStates: 0100000007000000
+    possibleStates: 01000000
     infiniteDifficultyEnabled: 0
     speedIncrementPerRound: 0.3
     fixedColumns: 2
@@ -3683,21 +3683,21 @@ MonoBehaviour:
     minCards: 16
     maxCards: 16
     moveSpeed: 0.1
-    possibleStates: 02000000
+    possibleStates: 0100000007000000
     infiniteDifficultyEnabled: 1
     speedIncrementPerRound: 0.3
     fixedColumns: 4
     fixedColumnSpacing: 150
     columnsMovementSpeed: 2
-    minCardsColumns: 4
-    maxCardsColumns: 4
+    minCardsColumns: 16
+    maxCardsColumns: 16
     waveWrapAroundMaxRows: 7
     waveWrapAroundSpeed: 5
     minCardsWaveWrapAround: 20
     maxCardsWaveWrapAround: 35
     circularMovementSpeed: 3.937
-    minCardsCircularMovement: 10
-    maxCardsCircularMovement: 20
+    minCardsCircularMovement: 16
+    maxCardsCircularMovement: 16
     fastMovementSpeed: 1
     minCardsFastMovement: 15
     maxCardsFastMovement: 18
@@ -3726,14 +3726,14 @@ MonoBehaviour:
     minCards: 20
     maxCards: 20
     moveSpeed: 1
-    possibleStates: 07000000
+    possibleStates: 01000000
     infiniteDifficultyEnabled: 0
     speedIncrementPerRound: 0.3
     fixedColumns: 4
     fixedColumnSpacing: 150
     columnsMovementSpeed: 1.2
-    minCardsColumns: 6
-    maxCardsColumns: 14
+    minCardsColumns: 20
+    maxCardsColumns: 20
     waveWrapAroundMaxRows: 3
     waveWrapAroundSpeed: 1.5
     minCardsWaveWrapAround: 8
@@ -3782,8 +3782,8 @@ MonoBehaviour:
     minCardsWaveWrapAround: 8
     maxCardsWaveWrapAround: 16
     circularMovementSpeed: 1
-    minCardsCircularMovement: 5
-    maxCardsCircularMovement: 12
+    minCardsCircularMovement: 28
+    maxCardsCircularMovement: 28
     fastMovementSpeed: 2
     minCardsFastMovement: 8
     maxCardsFastMovement: 15
@@ -3791,8 +3791,8 @@ MonoBehaviour:
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
     alignedMovementSpeed: 1.3
-    minCardsAlignedMovement: 5
-    maxCardsAlignedMovement: 12
+    minCardsAlignedMovement: 28
+    maxCardsAlignedMovement: 28
     pulsingMovementSpeed: 1.8
     minCardsPulsingMovement: 6
     maxCardsPulsingMovement: 12
@@ -3805,37 +3805,37 @@ MonoBehaviour:
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
-    minCardsStatic: 4
-    maxCardsStatic: 9
+    minCardsStatic: 28
+    maxCardsStatic: 28
     onlyOneColor: 0
   - scoreThreshold: 5
     minCards: 42
     maxCards: 42
     moveSpeed: 0.5
-    possibleStates: 060000000500000003000000
+    possibleStates: 06000000050000000300000008000000
     infiniteDifficultyEnabled: 0
     speedIncrementPerRound: 0.3
     fixedColumns: 6
     fixedColumnSpacing: 150
-    columnsMovementSpeed: 1.2
-    minCardsColumns: 6
-    maxCardsColumns: 14
+    columnsMovementSpeed: 0.5
+    minCardsColumns: 42
+    maxCardsColumns: 42
     waveWrapAroundMaxRows: 3
     waveWrapAroundSpeed: 1.5
     minCardsWaveWrapAround: 8
     maxCardsWaveWrapAround: 16
-    circularMovementSpeed: 1
-    minCardsCircularMovement: 5
-    maxCardsCircularMovement: 12
+    circularMovementSpeed: 0.545
+    minCardsCircularMovement: 15
+    maxCardsCircularMovement: 15
     fastMovementSpeed: 2
     minCardsFastMovement: 8
     maxCardsFastMovement: 15
     slowMovementSpeed: 0.7
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
-    alignedMovementSpeed: 1.3
-    minCardsAlignedMovement: 5
-    maxCardsAlignedMovement: 12
+    alignedMovementSpeed: 0.5
+    minCardsAlignedMovement: 42
+    maxCardsAlignedMovement: 42
     pulsingMovementSpeed: 1.8
     minCardsPulsingMovement: 6
     maxCardsPulsingMovement: 12
@@ -3848,8 +3848,8 @@ MonoBehaviour:
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
-    minCardsStatic: 4
-    maxCardsStatic: 9
+    minCardsStatic: 70
+    maxCardsStatic: 75
     onlyOneColor: 1
   - scoreThreshold: 10
     minCards: 56
@@ -3870,7 +3870,7 @@ MonoBehaviour:
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
-    fastMovementSpeed: 2
+    fastMovementSpeed: 1.4
     minCardsFastMovement: 8
     maxCardsFastMovement: 15
     slowMovementSpeed: 0.7
@@ -3913,9 +3913,9 @@ MonoBehaviour:
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
-    fastMovementSpeed: 2
-    minCardsFastMovement: 8
-    maxCardsFastMovement: 15
+    fastMovementSpeed: 1.56
+    minCardsFastMovement: 45
+    maxCardsFastMovement: 45
     slowMovementSpeed: 0.7
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
@@ -3923,8 +3923,8 @@ MonoBehaviour:
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
     pulsingMovementSpeed: 1.8
-    minCardsPulsingMovement: 6
-    maxCardsPulsingMovement: 12
+    minCardsPulsingMovement: 45
+    maxCardsPulsingMovement: 45
     waveMovementSpeed: 1.5
     minCardsWaveMovement: 7
     maxCardsWaveMovement: 14
@@ -3956,21 +3956,21 @@ MonoBehaviour:
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
-    fastMovementSpeed: 2
-    minCardsFastMovement: 8
-    maxCardsFastMovement: 15
+    fastMovementSpeed: 1.91
+    minCardsFastMovement: 56
+    maxCardsFastMovement: 56
     slowMovementSpeed: 0.7
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
     alignedMovementSpeed: 1.3
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
-    pulsingMovementSpeed: 1.8
-    minCardsPulsingMovement: 6
-    maxCardsPulsingMovement: 12
-    waveMovementSpeed: 1.5
-    minCardsWaveMovement: 7
-    maxCardsWaveMovement: 14
+    pulsingMovementSpeed: 1.9
+    minCardsPulsingMovement: 56
+    maxCardsPulsingMovement: 56
+    waveMovementSpeed: 1.9
+    minCardsWaveMovement: 56
+    maxCardsWaveMovement: 56
     quantumTeleportSpeed: 1.7
     minCardsQuantumTeleport: 8
     maxCardsQuantumTeleport: 16
@@ -3990,8 +3990,8 @@ MonoBehaviour:
     fixedColumns: 12
     fixedColumnSpacing: 70
     columnsMovementSpeed: 1.2
-    minCardsColumns: 6
-    maxCardsColumns: 14
+    minCardsColumns: 96
+    maxCardsColumns: 96
     waveWrapAroundMaxRows: 3
     waveWrapAroundSpeed: 1.5
     minCardsWaveWrapAround: 8
@@ -4039,9 +4039,9 @@ MonoBehaviour:
     waveWrapAroundSpeed: 1.5
     minCardsWaveWrapAround: 8
     maxCardsWaveWrapAround: 16
-    circularMovementSpeed: 1
-    minCardsCircularMovement: 5
-    maxCardsCircularMovement: 12
+    circularMovementSpeed: 0.978
+    minCardsCircularMovement: 64
+    maxCardsCircularMovement: 64
     fastMovementSpeed: 2
     minCardsFastMovement: 8
     maxCardsFastMovement: 15
@@ -4143,9 +4143,9 @@ MonoBehaviour:
     waveMovementSpeed: 1.5
     minCardsWaveMovement: 7
     maxCardsWaveMovement: 14
-    quantumTeleportSpeed: 1.7
-    minCardsQuantumTeleport: 8
-    maxCardsQuantumTeleport: 16
+    quantumTeleportSpeed: 3
+    minCardsQuantumTeleport: 80
+    maxCardsQuantumTeleport: 80
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
@@ -4164,10 +4164,10 @@ MonoBehaviour:
     columnsMovementSpeed: 1.2
     minCardsColumns: 6
     maxCardsColumns: 14
-    waveWrapAroundMaxRows: 5
-    waveWrapAroundSpeed: 1.5
-    minCardsWaveWrapAround: 8
-    maxCardsWaveWrapAround: 16
+    waveWrapAroundMaxRows: 6
+    waveWrapAroundSpeed: 3
+    minCardsWaveWrapAround: 100
+    maxCardsWaveWrapAround: 100
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
@@ -4199,24 +4199,24 @@ MonoBehaviour:
     minCards: 96
     maxCards: 96
     moveSpeed: 5
-    possibleStates: 0b0000000a000000020000000700000006000000040000000c00000009000000
-    infiniteDifficultyEnabled: 0
-    speedIncrementPerRound: 0.3
+    possibleStates: 0b0000000a000000020000000700000006000000040000000c0000000900000008000000
+    infiniteDifficultyEnabled: 1
+    speedIncrementPerRound: 0.2
     fixedColumns: 12
     fixedColumnSpacing: 70
-    columnsMovementSpeed: 1.2
-    minCardsColumns: 6
-    maxCardsColumns: 14
+    columnsMovementSpeed: 1.5
+    minCardsColumns: 96
+    maxCardsColumns: 96
     waveWrapAroundMaxRows: 8
-    waveWrapAroundSpeed: 1.5
-    minCardsWaveWrapAround: 8
-    maxCardsWaveWrapAround: 16
-    circularMovementSpeed: 1
-    minCardsCircularMovement: 5
-    maxCardsCircularMovement: 12
+    waveWrapAroundSpeed: 3
+    minCardsWaveWrapAround: 96
+    maxCardsWaveWrapAround: 96
+    circularMovementSpeed: 1.602
+    minCardsCircularMovement: 70
+    maxCardsCircularMovement: 85
     fastMovementSpeed: 2
-    minCardsFastMovement: 8
-    maxCardsFastMovement: 15
+    minCardsFastMovement: 96
+    maxCardsFastMovement: 96
     slowMovementSpeed: 0.7
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
@@ -4224,19 +4224,19 @@ MonoBehaviour:
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
     pulsingMovementSpeed: 1.8
-    minCardsPulsingMovement: 6
-    maxCardsPulsingMovement: 12
-    waveMovementSpeed: 1.5
-    minCardsWaveMovement: 7
-    maxCardsWaveMovement: 14
-    quantumTeleportSpeed: 1.7
-    minCardsQuantumTeleport: 8
-    maxCardsQuantumTeleport: 16
+    minCardsPulsingMovement: 96
+    maxCardsPulsingMovement: 96
+    waveMovementSpeed: 3
+    minCardsWaveMovement: 96
+    maxCardsWaveMovement: 96
+    quantumTeleportSpeed: 1.5
+    minCardsQuantumTeleport: 96
+    maxCardsQuantumTeleport: 96
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
-    minCardsStatic: 4
-    maxCardsStatic: 9
+    minCardsStatic: 96
+    maxCardsStatic: 96
     onlyOneColor: 1
   currentLevel:
     scoreThreshold: 0

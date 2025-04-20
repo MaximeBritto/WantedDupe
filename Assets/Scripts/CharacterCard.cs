@@ -18,7 +18,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
     private bool alreadyClicked = false;
     private bool isWanted = false;
     private Canvas cardCanvas;
-
+    
     private void Awake()
     {
         // Vérifier si nous avons un Button
@@ -53,13 +53,22 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
             characterImage.raycastPadding = new Vector4(10, 10, 10, 10);
         }
 
-        // Assurer que la carte a un Canvas pour gérer l'ordre d'affichage
-        cardCanvas = GetComponent<Canvas>();
-        if (cardCanvas == null)
+        // IMPORTANT: Ne pas créer de Canvas individuel
+        // Supprimer tout Canvas existant pour éviter les problèmes
+        Canvas existingCanvas = GetComponent<Canvas>();
+        if (existingCanvas != null)
         {
-            cardCanvas = gameObject.AddComponent<Canvas>();
-            gameObject.AddComponent<GraphicRaycaster>();
+            Debug.Log($"Suppression du Canvas sur {gameObject.name} pour éviter les problèmes avec RectMask2D");
+            Destroy(existingCanvas);
+            
+            GraphicRaycaster raycaster = GetComponent<GraphicRaycaster>();
+            if (raycaster != null)
+                Destroy(raycaster);
         }
+        
+        // Assurer que l'objet est actif et visible
+        gameObject.SetActive(true);
+        characterImage.enabled = true;
     }
 
     public void Initialize(string name, Sprite sprite)
@@ -74,24 +83,32 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
     {
         isWanted = wanted;
         
-        // Si c'est la carte recherchée, ajuster l'ordre d'affichage pour qu'elle soit derrière
+        // Si c'est la carte recherchée, ajuster l'ordre d'affichage
+        // NOTE: Nous n'utilisons plus Canvas.sortingOrder mais la propriété siblingIndex pour l'ordre
         if (isWanted)
         {
-            SetCardRenderOrder(50); // Valeur suffisamment haute pour rester au-dessus du board
+            // Mettre la carte wanted "sous" les autres cartes (indice plus petit)
+            transform.SetSiblingIndex(0);
         }
         else
         {
-            SetCardRenderOrder(51); // Valeur plus haute que la carte wanted
+            // Mettre les autres cartes "au-dessus" (indice plus grand)
+            transform.SetSiblingIndex(transform.parent.childCount - 1);
         }
     }
 
-    // Ajuster l'ordre d'affichage de la carte
+    // Ajuster l'ordre d'affichage de la carte - Méthode conservée pour compatibilité
     public void SetCardRenderOrder(int orderValue)
     {
-        if (cardCanvas != null)
+        // Si orderValue est plus petit, la carte doit être "sous" les autres (siblingIndex plus petit)
+        // Si orderValue est plus grand, la carte doit être "au-dessus" (siblingIndex plus grand)
+        if (orderValue <= 50)
         {
-            cardCanvas.overrideSorting = true;
-            cardCanvas.sortingOrder = orderValue;
+            transform.SetSiblingIndex(0); // Mettre au bas de la pile
+        }
+        else
+        {
+            transform.SetSiblingIndex(transform.parent.childCount - 1); // Mettre au sommet de la pile
         }
     }
 

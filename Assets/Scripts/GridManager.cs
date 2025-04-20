@@ -497,24 +497,25 @@ public class GridManager : MonoBehaviour
             wantedCard = wantedCards[0];
             wantedCard.SetAsWanted(true);
             
-            // Renommer les autres cartes wanted
+            // Réinitialiser les autres cartes
             for (int i = 1; i < wantedCards.Count; i++)
             {
-                Sprite randomSprite;
-                do
-                {
-                    randomSprite = GameManager.Instance.GetRandomSprite();
-                } while (randomSprite == wantedCard.characterSprite);
-                
-                wantedCards[i].Initialize("Card_" + (cards.Count + i), randomSprite);
+                wantedCards[i].characterName = "Card_" + (cards.IndexOf(wantedCards[i]));
                 wantedCards[i].SetAsWanted(false);
             }
         }
         else
         {
-            // Un seul wanted trouvé, c'est le comportement normal
+            // Exactement un wanted, donc on le mémorise
             wantedCard = wantedCards[0];
+            // S'assurer que le wanted a priorité d'affichage
             wantedCard.SetAsWanted(true);
+        }
+
+        // Se souvenir du wanted card pour validation future
+        if (wantedCard != null)
+        {
+            GameManager.Instance.SelectNewWantedCharacter(wantedCard);
         }
     }
 
@@ -1134,20 +1135,15 @@ public class GridManager : MonoBehaviour
             
             Debug.Log($"Card {i}: row={row}, col={col}, xPos={xPos}, yPos={yPos}");
             
-            // Pour l'étape de positionnement initial, placer directement sans animation
-            if (isCardAnimationRunning || isRouletteActive)
-            {
-                // Positionnement direct sans animation
-                rectTransform.anchoredPosition = new Vector2(xPos, yPos);
-            }
-            else
-            {
-                // Animation normale
-                Tween tween = rectTransform.DOAnchorPos(new Vector2(xPos, yPos), 0.5f)
-                    .SetEase(Ease.OutBack);
-                activeTweens.Add(tween);
-            }
+            // Positionnement direct sans animation dans tous les cas pour résoudre le problème
+            rectTransform.anchoredPosition = new Vector2(xPos, yPos);
+            
+            // Force la mise à jour pour s'assurer que les changements sont appliqués immédiatement
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
         }
+        
+        // Force la mise à jour du canvas
+        Canvas.ForceUpdateCanvases();
         
         Debug.Log("FIN ArrangeCardsInLine - Toutes les cartes ont été positionnées en grille");
     }
