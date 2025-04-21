@@ -3220,7 +3220,7 @@ MonoBehaviour:
     - {fileID: 8296324621450185297, guid: 68235dc929ed3cc41ab4d257d408c86e, type: 3}
     - {fileID: -1250728884378928431, guid: a41d2863431554945b0c173983e637c4, type: 3}
     - {fileID: -5264198331102626987, guid: 72290de0cd66bc64fb90488fdf56d195, type: 3}
-  roundDuration: 40
+  roundDuration: 10
   startingGridSize: 16
   scorePerCorrectClick: 1
   timeRemaining: 0
