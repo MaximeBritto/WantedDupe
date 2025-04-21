@@ -225,6 +225,9 @@ public class UIManager : MonoBehaviour
         startButton.onClick.AddListener(StartGame);
         restartButton.onClick.AddListener(StartGame);
 
+        // Démarrer la musique du menu
+        AudioManager.Instance?.StartMenuMusic();
+
         if (gameBoardImage != null)
         {
             gameBoardImage.color = new Color(0, 0, 0, 0.2f);
@@ -711,6 +714,9 @@ public class UIManager : MonoBehaviour
                 bestScoreText.text = $"Best Score : {GameManager.Instance.bestScore}";
             }
         }
+
+        // Démarrer la musique du menu
+        AudioManager.Instance?.StartMenuMusic();
 
         if (continueButton != null)
         {

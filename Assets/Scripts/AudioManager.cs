@@ -73,6 +73,17 @@ public class AudioManager : MonoBehaviour
         if (musicSource && backgroundMusic)
         {
             musicSource.volume = musicVolume;
+            musicSource.pitch = 1f;
+            musicSource.Play();
+        }
+    }
+
+    public void StartMenuMusic()
+    {
+        if (musicSource && backgroundMusic)
+        {
+            musicSource.volume = musicVolume;
+            musicSource.pitch = 0.85f; // Vitesse plus lente pour le menu
             musicSource.Play();
         }
     }

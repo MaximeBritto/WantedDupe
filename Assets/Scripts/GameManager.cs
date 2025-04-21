@@ -412,6 +412,15 @@ public class GameManager : MonoBehaviour
             adMobAdsScript.LoadBannerAd();
         }
 
+        // Valider le point actuel et passer au suivant
+        if (wantedCharacter != null)
+        {
+            AudioManager.Instance?.PlayCorrect();
+            displayedScore += 1;
+            onScoreChanged.Invoke(displayedScore);
+            StartNewRound();
+        }
+
         // Masquer le menu game over
         UIManager.Instance?.OnGameStart();
         
