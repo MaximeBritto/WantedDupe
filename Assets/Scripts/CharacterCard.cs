@@ -112,19 +112,50 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
     // Méthode pour définir si cette carte est la carte recherchée
     public void SetAsWanted(bool wanted)
     {
+        Debug.Log($"SetAsWanted({wanted}) sur {characterName} {GetInstanceID()}");
+        
+        // Mettre à jour le flag interne
         isWanted = wanted;
         
+        // Si le nom change pour "Wanted", mettre à jour
+        if (wanted && characterName != "Wanted")
+        {
+            characterName = "Wanted";
+            Debug.Log($"Nom changé en 'Wanted' pour {GetInstanceID()}");
+        }
+        
         // Si c'est la carte recherchée, ajuster l'ordre d'affichage
-        // NOTE: Nous n'utilisons plus Canvas.sortingOrder mais la propriété siblingIndex pour l'ordre
         if (isWanted)
         {
             // Mettre la carte wanted "sous" les autres cartes (indice plus petit)
             transform.SetSiblingIndex(0);
+            Debug.Log($"Carte {GetInstanceID()} définie comme wanted et placée en bas de pile (index 0)");
+            
+            // IMPORTANT: Synchroniser avec GameManager si ce n'est pas déjà fait
+            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != this)
+            {
+                Debug.Log($"Mise à jour automatique de GameManager.wantedCharacter avec cette carte ({GetInstanceID()})");
+                GameManager.Instance.wantedCharacter = this;
+            }
         }
         else
         {
             // Mettre les autres cartes "au-dessus" (indice plus grand)
             transform.SetSiblingIndex(transform.parent.childCount - 1);
+            Debug.Log($"Carte {GetInstanceID()} définie comme NON-wanted et placée en haut de pile");
+            
+            // Si cette carte était référencée dans GameManager, corriger cela
+            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter == this)
+            {
+                Debug.LogWarning($"Correction: Cette carte ({GetInstanceID()}) n'est plus wanted mais était encore référencée dans GameManager");
+                GameManager.Instance.wantedCharacter = null;
+            }
+        }
+        
+        // Vérification finale pour garantir la cohérence
+        if (isWanted && GameManager.Instance != null && GameManager.Instance.wantedCharacter != this)
+        {
+            Debug.LogError($"ERREUR CRITIQUE: Incohérence persistante - Cette carte ({GetInstanceID()}) est wanted mais pas dans GameManager!");
         }
     }
 
@@ -195,8 +226,32 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
             return;
 
-        if (GameManager.Instance.wantedCharacter == this)
+        // IMPORTANT: Afficher des logs de débogage pour diagnostiquer le problème
+        Debug.Log($"OnPointerDown sur {characterName} - isWanted={isWanted}");
+        Debug.Log($"GameManager.wantedCharacter={GameManager.Instance.wantedCharacter?.characterName}, this={gameObject.name}");
+        
+        // Vérification robuste: utiliser à la fois le flag isWanted ET vérifier la référence
+        bool isCorrectWanted = isWanted && (GameManager.Instance.wantedCharacter == this);
+        
+        // VÉRIFICATION SUPPLÉMENTAIRE: Si les références sont désynchronisées
+        if (isWanted && GameManager.Instance.wantedCharacter != this)
         {
+            Debug.LogWarning($"⚠️ DÉSYNCHRONISATION DÉTECTÉE: Flag isWanted=true mais ce n'est pas la référence dans GameManager!");
+            // Auto-correction: mettre à jour GameManager avec cette carte
+            GameManager.Instance.wantedCharacter = this;
+            isCorrectWanted = true;
+        }
+        else if (!isWanted && GameManager.Instance.wantedCharacter == this)
+        {
+            Debug.LogWarning($"⚠️ DÉSYNCHRONISATION INVERSE: Flag isWanted=false mais c'est la référence dans GameManager!");
+            // Auto-correction: mettre le flag local à jour
+            isWanted = true;
+            isCorrectWanted = true;
+        }
+        
+        if (isCorrectWanted)
+        {
+            Debug.Log("☑️ CARTE CORRECTE DÉTECTÉE!");
             // Logique de réussite - Marquer cette carte spécifique comme cliquée
             alreadyClicked = true;
             AudioManager.Instance.PlayCorrect();
@@ -206,6 +261,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         {
             // Logique d'erreur
             // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            Debug.Log("❌ CARTE INCORRECTE: attendu=" + GameManager.Instance.wantedCharacter?.characterName);
             cardAnimation.PlayWrongAnimation();
             AudioManager.Instance.PlayWrong();
             GameManager.Instance.ApplyTimePenalty();
@@ -219,9 +275,33 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
 
         if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
             return;
+            
+        // IMPORTANT: Afficher des logs de débogage pour diagnostiquer le problème
+        Debug.Log($"OnCardClicked sur {characterName} - isWanted={isWanted}");
+        Debug.Log($"GameManager.wantedCharacter={GameManager.Instance.wantedCharacter?.characterName}, this={gameObject.name}");
 
-        if (GameManager.Instance.wantedCharacter == this)
+        // Vérification robuste: utiliser à la fois le flag isWanted ET vérifier la référence
+        bool isCorrectWanted = isWanted && (GameManager.Instance.wantedCharacter == this);
+        
+        // VÉRIFICATION SUPPLÉMENTAIRE: Si les références sont désynchronisées
+        if (isWanted && GameManager.Instance.wantedCharacter != this)
         {
+            Debug.LogWarning($"⚠️ DÉSYNCHRONISATION DÉTECTÉE: Flag isWanted=true mais ce n'est pas la référence dans GameManager!");
+            // Auto-correction: mettre à jour GameManager avec cette carte
+            GameManager.Instance.wantedCharacter = this;
+            isCorrectWanted = true;
+        }
+        else if (!isWanted && GameManager.Instance.wantedCharacter == this)
+        {
+            Debug.LogWarning($"⚠️ DÉSYNCHRONISATION INVERSE: Flag isWanted=false mais c'est la référence dans GameManager!");
+            // Auto-correction: mettre le flag local à jour
+            isWanted = true;
+            isCorrectWanted = true;
+        }
+        
+        if (isCorrectWanted)
+        {
+            Debug.Log("☑️ CARTE CORRECTE DÉTECTÉE!");
             // Logique de réussite - Marquer cette carte spécifique comme cliquée
             alreadyClicked = true;
             AudioManager.Instance.PlayCorrect();
@@ -231,6 +311,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         {
             // Logique d'erreur
             // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            Debug.Log("❌ CARTE INCORRECTE: attendu=" + GameManager.Instance.wantedCharacter?.characterName);
             cardAnimation.PlayWrongAnimation();
             AudioManager.Instance.PlayWrong();
             GameManager.Instance.ApplyTimePenalty();

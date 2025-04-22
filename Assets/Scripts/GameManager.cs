@@ -157,14 +157,28 @@ public class GameManager : MonoBehaviour
             SaveBestScore();
         }
         
-        // Vérifier si c'est la 2ème partie
+        // Vérifier si c'est la bonne partie pour montrer l'interstitiel (tous les 2 jeux)
         if (gameCount % 2 == 0 && adMobAdsScript != null)
         {
-            // Afficher l'interstitial avant l'écran de game over
-            StartCoroutine(ShowInterstitialThenGameOver());
+            Debug.Log($"GameOver: Tentative d'affichage de l'interstitiel - gameCount={gameCount}");
+            
+            // S'assurer que la pub est chargée
+            if (adMobAdsScript != null)
+            {
+                // Précharger la pub pour s'assurer qu'elle est prête
+                adMobAdsScript.LoadInterstitialAd();
+                // Attendre un peu puis afficher la pub et l'écran de game over
+                StartCoroutine(ShowInterstitialThenGameOver());
+            }
+            else
+            {
+                Debug.LogError("GameOver: adMobAdsScript est null");
+                StartCoroutine(RevealWantedAndGameOver());
+            }
         }
         else
         {
+            Debug.Log($"GameOver: Pas d'interstitiel cette fois - gameCount={gameCount}");
             // On déclenche la séquence pour ne laisser que le Wanted visible
             StartCoroutine(RevealWantedAndGameOver());
         }
@@ -193,19 +207,37 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        // Attendre que l'animation se termine
         yield return new WaitForSeconds(1f);
 
         // Montrer l'interstitial
         if (adMobAdsScript != null)
         {
-            adMobAdsScript.LoadInterstitialAd();
-            adMobAdsScript.ShowInterstitialAd();
+            Debug.Log("ShowInterstitialThenGameOver: Tentative d'affichage de l'interstitiel");
+            
+            // Vérifier si la pub est chargée
+            if (adMobAdsScript.IsInterstitialAdLoaded())
+            {
+                Debug.Log("L'interstitiel est chargé, on l'affiche");
+                adMobAdsScript.ShowInterstitialAd();
+                
+                // Attendre suffisamment longtemps pour que l'interstitiel s'affiche
+                yield return new WaitForSeconds(1.5f);
+            }
+            else
+            {
+                Debug.LogWarning("L'interstitiel n'est pas chargé, on continue sans l'afficher");
+                // Tenter de charger pour la prochaine fois
+                adMobAdsScript.LoadInterstitialAd();
+            }
+        }
+        else
+        {
+            Debug.LogError("ShowInterstitialThenGameOver: adMobAdsScript est null");
         }
 
-        // Attendre un peu pour s'assurer que l'interstitial a eu le temps de s'afficher
-        yield return new WaitForSeconds(0.5f);
-
-        // Afficher l'écran de game over
+        // Afficher l'écran de game over dans tous les cas
+        Debug.Log("ShowInterstitialThenGameOver: Affichage de l'écran de game over");
         onGameOver.Invoke();
     }
 
@@ -246,6 +278,13 @@ public class GameManager : MonoBehaviour
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
+        // Protection contre les nulls
+        if (character == null)
+        {
+            Debug.LogError("SelectNewWantedCharacter: character est null!");
+            return;
+        }
+
         // Empêcher les appels multiples pendant une roulette
         if (isSelectingNewWanted)
         {
@@ -256,14 +295,52 @@ public class GameManager : MonoBehaviour
         // Vérifier que le personnage n'est pas déjà le wanted
         if (wantedCharacter == character)
         {
-            Debug.LogWarning("GameManager: Tentative de sélectionner le même wanted character - Ignorée");
+            Debug.LogWarning($"GameManager: {character.characterName} est déjà le wanted character - Mise à jour du flag uniquement");
+            // S'assurer que le flag local est correctement défini
+            character.SetAsWanted(true);
             return;
         }
         
         isSelectingNewWanted = true;
         
-        AudioManager.Instance?.PlayWantedSelectionSound();
+        Debug.Log($"🔄 Sélection d'un nouveau wanted: {character.characterName} (ID: {character.GetInstanceID()})");
+        
+        // IMPORTANT: Réinitialiser d'abord notre référence précédente si elle existe
+        if (wantedCharacter != null && wantedCharacter != character)
+        {
+            Debug.Log($"Réinitialisation de l'ancien wanted: {wantedCharacter.characterName} (ID: {wantedCharacter.GetInstanceID()})");
+            wantedCharacter.SetAsWanted(false);
+        }
+        
+        // Mettre à jour notre référence AVANT de réinitialiser les autres cartes
+        // cela permet d'éviter des problèmes de timing avec les callbacks
         wantedCharacter = character;
+        
+        // Réinitialiser toutes les cartes pour s'assurer qu'aucune autre n'est marquée comme wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            int cleanedCards = 0;
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null && card != character && card.characterName == "Wanted")
+                {
+                    // S'assurer que cette carte n'est PAS marquée comme wanted
+                    card.SetAsWanted(false);
+                    cleanedCards++;
+                }
+            }
+            
+            if (cleanedCards > 0)
+            {
+                Debug.Log($"Nettoyé {cleanedCards} carte(s) wanted indésirable(s)");
+            }
+        }
+        
+        // Marquer explicitement la nouvelle carte comme wanted
+        character.SetAsWanted(true);
+        
+        AudioManager.Instance?.PlayWantedSelectionSound();
         
         // Notifier les abonnés du changement (déclenche la roulette UI)
         onNewWantedCharacter.Invoke(character);
@@ -402,8 +479,19 @@ public class GameManager : MonoBehaviour
     // Nouvelle méthode pour continuer la partie après la rewarded ad
     public void ContinueGame()
     {
+        Debug.Log("ContinueGame appelé - Relance du niveau");
+        
+        // Réinitialiser la référence du wantedCharacter
+        // IMPORTANT: Cela évite les problèmes de comparaison avec d'anciennes références
+        wantedCharacter = null;
+        
+        // Réactiver le statut du jeu
         isGameActive = true;
+        
+        // Restaurer le temps avec un bonus
         timeRemaining = savedTimeRemaining + 10f;  // Ajouter 10 secondes bonus
+        
+        // Redémarrer la musique
         AudioManager.Instance?.StartBackgroundMusic();
         
         // Recharger la bannière
@@ -412,18 +500,28 @@ public class GameManager : MonoBehaviour
             adMobAdsScript.LoadBannerAd();
         }
 
-        // Valider le point actuel et passer au suivant
-        if (wantedCharacter != null)
-        {
-            AudioManager.Instance?.PlayCorrect();
-            displayedScore += 1;
-            onScoreChanged.Invoke(displayedScore);
-            StartNewRound();
-        }
-
-        // Masquer le menu game over
+        // Masquer le menu game over et afficher l'interface de jeu
         UIManager.Instance?.OnGameStart();
         
+        // Important: récupérer le GridManager et réinitialiser correctement le jeu
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            // CORRECTION: Ne pas appeler à la fois ResetGame et CreateNewWanted
+            // car cela déclenche deux roulettes
+            
+            // Option 1: N'appeler que ResetGame qui va gérer toute la logique
+            gridManager.ResetGame();
+            
+            // !! Ne pas appeler CreateNewWanted() ici pour éviter une double roulette !!
+            // gridManager.CreateNewWanted(); -- SUPPRIMÉ
+        }
+        else
+        {
+            Debug.LogError("GridManager non trouvé dans ContinueGame");
+        }
+        
+        // Redémarrer le timer
         StartCoroutine(GameTimer());
     }
 }

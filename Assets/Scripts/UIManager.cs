@@ -260,12 +260,39 @@ public class UIManager : MonoBehaviour
         
         if (continueButton != null)
         {
+            continueButton.onClick.RemoveAllListeners(); // Supprimer les listeners existants
             continueButton.onClick.AddListener(() => {
+                // Désactiver le bouton immédiatement pour éviter les doubles clics
+                continueButton.interactable = false;
+                
+                Debug.Log("Bouton Continue cliqué - tentative d'affichage de la pub récompensée");
+                
                 if (adMobAdsScript != null)
                 {
-                    adMobAdsScript.LoadRewardedAd();
-                    adMobAdsScript.ShowRewardedAd();
-                    HideContinueButton();  // Masquer le bouton après utilisation
+                    // Vérifier si la pub est déjà chargée
+                    bool isAdLoaded = adMobAdsScript.IsRewardedAdLoaded();
+                    Debug.Log($"État de la pub récompensée: {(isAdLoaded ? "Chargée" : "Non chargée")}");
+                    
+                    if (!isAdLoaded)
+                    {
+                        // Tenter un chargement immédiat
+                        adMobAdsScript.LoadRewardedAd();
+                        
+                        // Attendre un peu et vérifier à nouveau
+                        StartCoroutine(TryShowRewardedAfterDelay());
+                    }
+                    else
+                    {
+                        // La pub est déjà chargée, on peut l'afficher directement
+                        adMobAdsScript.ShowRewardedAd();
+                        HideContinueButton();
+                    }
+                }
+                else
+                {
+                    Debug.LogError("AdMobAdsScript est null - impossible d'afficher la pub récompensée");
+                    // Ré-activer le bouton en cas d'erreur
+                    continueButton.interactable = true;
                 }
             });
         }
@@ -448,6 +475,36 @@ public class UIManager : MonoBehaviour
         // Désactiver temporairement la grille pour éviter un pattern en arrière-plan
         gridCanvas.gameObject.SetActive(false);
         
+        // Vérifications de sécurité pour la carte à afficher
+        if (finalCharacter == null)
+        {
+            Debug.LogError("❌ ERREUR: WantedRouletteEffect appelé avec une carte null!");
+            
+            // Utiliser une carte par défaut (celle du GameManager si disponible)
+            if (GameManager.Instance.wantedCharacter != null)
+            {
+                finalCharacter = GameManager.Instance.wantedCharacter;
+                Debug.Log("♻️ Récupération de la carte depuis GameManager: " + finalCharacter.characterName);
+            }
+            else
+            {
+                // Situation critique - terminer la roulette sans animation
+                isRouletteRunning = false;
+                gridCanvas.gameObject.SetActive(wasGridActive);
+                GameManager.Instance.ResumeGame();
+                yield break;
+            }
+        }
+        
+        if (finalCharacter.characterSprite == null)
+        {
+            Debug.LogError("❌ ERREUR: La carte finale n'a pas de sprite!");
+            // Assigner un sprite par défaut
+            finalCharacter.characterSprite = GameManager.Instance.GetRandomSprite();
+        }
+        
+        Debug.Log($"🎲 Démarrage de la roulette UI pour: {finalCharacter.characterName} (sprite: {finalCharacter.characterSprite.name})");
+        
         if (wantedCharacterImage.sprite == null)
         {
             wantedCharacterImage.sprite = GameManager.Instance.GetRandomSprite();
@@ -482,8 +539,27 @@ public class UIManager : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
+        // IMPORTANT: S'assurer que le sprite final est correctement affiché
+        // Double vérification pour être sûr que la carte finale est à jour
+        CharacterCard currentWanted = GameManager.Instance.wantedCharacter;
+        if (currentWanted != null && currentWanted != finalCharacter)
+        {
+            Debug.LogWarning("⚠️ Changement détecté pendant la roulette!");
+            Debug.Log($"Original: {finalCharacter.characterName} -> Nouveau: {currentWanted.characterName}");
+            finalCharacter = currentWanted;
+        }
+        
         // Afficher le sprite final du wanted
-        wantedCharacterImage.sprite = finalCharacter.characterSprite;
+        if (finalCharacter != null && finalCharacter.characterSprite != null)
+        {
+            wantedCharacterImage.sprite = finalCharacter.characterSprite;
+            Debug.Log($"✅ Fin de la roulette - Affichage du sprite final: {finalCharacter.characterSprite.name}");
+        }
+        else
+        {
+            Debug.LogError("❌ ERREUR: Impossible d'afficher le sprite final - wanted ou sprite null!");
+        }
+        
         AudioManager.Instance.PlayCorrect();
 
         yield return new WaitForSeconds(0.5f);
@@ -514,59 +590,28 @@ public class UIManager : MonoBehaviour
         GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
-            Debug.Log("UIManager: Préparation des cartes après roulette");
-            
-            // VÉRIFICATION SUPPLÉMENTAIRE: S'assurer que le parent des cartes est actif
-            Transform parentTransform = gridManager.gameBoardTransform != null ? 
-                gridManager.gameBoardTransform : gridManager.transform;
-            if (!parentTransform.gameObject.activeSelf)
+            // Assurer la synchronisation avec la grille
+            if (gridManager.wantedCard != finalCharacter)
             {
-                Debug.LogWarning("CORRECTION: Le parent des cartes était désactivé - Réactivation");
-                parentTransform.gameObject.SetActive(true);
-            }
-            
-            // Identifier le pattern actuel
-            string patternType = gridManager.CurrentState.ToString();
-            Debug.Log($"UIManager: Pattern détecté: {patternType}");
-            
-            // Préparer toutes les cartes à être à échelle zéro AVANT le placement
-            foreach (var card in gridManager.cards)
-            {
-                if (card != null)
+                Debug.LogWarning("⚠️ Désynchronisation entre UIManager et GridManager");
+                if (GameManager.Instance.wantedCharacter != null)
                 {
-                    card.gameObject.SetActive(true);
-                    card.transform.localScale = Vector3.zero;
-                    
-                    // Stopper toute animation en cours sur cette carte
-                    DOTween.Kill(card.transform);
+                    Debug.Log($"Correction avec GameManager.wantedCharacter: {GameManager.Instance.wantedCharacter.characterName}");
+                    finalCharacter = GameManager.Instance.wantedCharacter;
                 }
             }
             
-            // UN SEUL APPEL à ArrangeCardsBasedOnState pour éviter les doubles placements
-            // Cela positionne initialement les cartes au bon endroit
-            gridManager.ArrangeCardsBasedOnState();
-            
-            // Log pour déboguer le nombre de cartes
-            Debug.Log($"Nombre de cartes à animer: {gridManager.cards.Count}");
-            
-            // Attendre un court délai avant d'animer l'entrée des cartes
-            yield return new WaitForSeconds(0.4f);
-            
-            // Animer l'entrée des cartes maintenant que tout est correctement positionné
-            Debug.Log("UIManager: Animation des cartes après positionnement");
+            // Anime toutes les cartes
             gridManager.AnimateCardsEntry();
-            
-            // Ajouter une solution de secours pour s'assurer que les cartes sont visibles
-            StartCoroutine(ForceShowCardsBackup(gridManager, 0.5f));
         }
         else
         {
-            Debug.LogError("UIManager: GridManager introuvable après la roulette!");
+            Debug.LogError("GridManager non trouvé!");
         }
-        
+
+        // Reprendre la partie quand toutes les animations sont terminées
         GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
-        Debug.Log("UIManager: Fin de la roulette UI");
     }
     
     // Méthode de secours qui force l'affichage des cartes après un délai
@@ -656,6 +701,17 @@ public class UIManager : MonoBehaviour
             }
         }
 
+        // S'assurer que les boutons sont actifs et interactifs pour la prochaine fois
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+        }
+        
+        if (continueButton != null)
+        {
+            continueButton.interactable = true;
+        }
+
         if (SafeArea != null)
         {
             SafeArea.SetActive(true);
@@ -718,21 +774,61 @@ public class UIManager : MonoBehaviour
         // Démarrer la musique du menu
         AudioManager.Instance?.StartMenuMusic();
 
+        // Démarrer la musique du menu
+        AudioManager.Instance?.StartMenuMusic();
+
+        // CORRECTION: S'assurer que le bouton restart est toujours interactif
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+            // Réassigner le listener au cas où il aurait été perdu
+            restartButton.onClick.RemoveAllListeners();
+            restartButton.onClick.AddListener(StartGame);
+        }
+
+        // Gérer l'affichage du bouton continue
         if (continueButton != null)
         {
-            continueButton.gameObject.SetActive(isNewGame);
+            // Afficher le bouton continue uniquement si c'est une première partie
+            // ou si le joueur n'a pas déjà utilisé le continue dans cette session
+            bool shouldShowContinue = isNewGame && !hasUsedContinue;
+            continueButton.gameObject.SetActive(shouldShowContinue);
+            continueButton.interactable = true; // S'assurer que le bouton est interactif
+            
+            Debug.Log($"Bouton continue affiché: {shouldShowContinue}, isNewGame: {isNewGame}, hasUsedContinue: {hasUsedContinue}");
+            
+            // Précharger la pub récompensée si le bouton est affiché
+            if (shouldShowContinue && adMobAdsScript != null)
+            {
+                Debug.Log("Préchargement de la pub récompensée pour le bouton Continue");
+                adMobAdsScript.LoadRewardedAd();
+            }
         }
     }
 
     private void StartGame()
     {
-        isNewGame = true;  // Réinitialiser le flag de nouvelle partie
-        hasUsedContinue = false;  // Réinitialiser le flag d'utilisation du continue
+        Debug.Log("StartGame appelé - Réinitialisation des flags isNewGame et hasUsedContinue");
+        
+        // IMPORTANT: Toujours réinitialiser ces flags lors du démarrage d'une nouvelle partie
+        isNewGame = true;
+        hasUsedContinue = false;
         
         // Mettre à jour l'affichage du meilleur score
         if (bestScoreText != null && GameManager.Instance != null)
         {
             bestScoreText.text = $"Meilleur Score : {GameManager.Instance.bestScore}";
+        }
+        
+        // S'assurer que les boutons sont dans un état correct
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+        }
+        
+        if (continueButton != null)
+        {
+            continueButton.interactable = true;
         }
         
         GameManager.Instance.StartGame();
@@ -863,9 +959,11 @@ public class UIManager : MonoBehaviour
     {
         if (continueButton != null)
         {
+            Debug.Log("Masquage du bouton Continue et marquage comme utilisé");
             continueButton.gameObject.SetActive(false);
             hasUsedContinue = true;
-            isNewGame = false;  // Indiquer que ce n'est plus une nouvelle partie
+            // CORRECTION: Ne pas modifier isNewGame ici car cela empêche le bouton restart de fonctionner
+            // isNewGame = false;  -- SUPPRIMÉ
         }
     }
 
@@ -899,5 +997,46 @@ public class UIManager : MonoBehaviour
         // Forcer une mise à jour du layout
         LayoutRebuilder.ForceRebuildLayoutImmediate(timerText.rectTransform);
         Canvas.ForceUpdateCanvases();
+    }
+
+    private IEnumerator TryShowRewardedAfterDelay()
+    {
+        // Attendre un court délai pour donner une chance à la pub de se charger
+        yield return new WaitForSeconds(1.5f);
+        
+        if (adMobAdsScript != null)
+        {
+            bool isAdLoaded = adMobAdsScript.IsRewardedAdLoaded();
+            Debug.Log($"Deuxième vérification de la pub récompensée: {(isAdLoaded ? "Chargée" : "Toujours non chargée")}");
+            
+            if (isAdLoaded)
+            {
+                adMobAdsScript.ShowRewardedAd();
+                HideContinueButton();
+            }
+            else
+            {
+                // Informer l'utilisateur que la pub n'est pas disponible
+                Debug.LogWarning("La pub récompensée n'a pas pu être chargée");
+                
+                // Ré-activer le bouton pour permettre un nouvel essai
+                if (continueButton != null)
+                {
+                    continueButton.interactable = true;
+                }
+            }
+        }
+    }
+
+    public void OnRewardedAdClosed(bool wasError)
+    {
+        Debug.Log($"Pub récompensée fermée. Erreur: {wasError}");
+        
+        // Si c'était une erreur, réactiver le bouton pour permettre une nouvelle tentative
+        if (wasError && continueButton != null)
+        {
+            continueButton.interactable = true;
+            Debug.Log("Réactivation du bouton Continue après erreur");
+        }
     }
 }

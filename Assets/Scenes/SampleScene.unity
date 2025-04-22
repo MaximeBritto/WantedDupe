@@ -3796,8 +3796,8 @@ MonoBehaviour:
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
     alignedMovementSpeed: 1.3
-    minCardsAlignedMovement: 28
-    maxCardsAlignedMovement: 28
+    minCardsAlignedMovement: 30
+    maxCardsAlignedMovement: 30
     pulsingMovementSpeed: 1.8
     minCardsPulsingMovement: 6
     maxCardsPulsingMovement: 12
@@ -3927,7 +3927,7 @@ MonoBehaviour:
     alignedMovementSpeed: 1.3
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
-    pulsingMovementSpeed: 1.8
+    pulsingMovementSpeed: 2.5
     minCardsPulsingMovement: 45
     maxCardsPulsingMovement: 45
     waveMovementSpeed: 1.5
@@ -3961,7 +3961,7 @@ MonoBehaviour:
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
-    fastMovementSpeed: 1.91
+    fastMovementSpeed: 2.82
     minCardsFastMovement: 56
     maxCardsFastMovement: 56
     slowMovementSpeed: 0.7
@@ -3970,10 +3970,10 @@ MonoBehaviour:
     alignedMovementSpeed: 1.3
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
-    pulsingMovementSpeed: 1.9
+    pulsingMovementSpeed: 2.8
     minCardsPulsingMovement: 56
     maxCardsPulsingMovement: 56
-    waveMovementSpeed: 1.9
+    waveMovementSpeed: 3
     minCardsWaveMovement: 56
     maxCardsWaveMovement: 56
     quantumTeleportSpeed: 1.7
@@ -4044,7 +4044,7 @@ MonoBehaviour:
     waveWrapAroundSpeed: 1.5
     minCardsWaveWrapAround: 8
     maxCardsWaveWrapAround: 16
-    circularMovementSpeed: 0.978
+    circularMovementSpeed: 1.15
     minCardsCircularMovement: 64
     maxCardsCircularMovement: 64
     fastMovementSpeed: 2
@@ -4090,21 +4090,21 @@ MonoBehaviour:
     circularMovementSpeed: 1
     minCardsCircularMovement: 5
     maxCardsCircularMovement: 12
-    fastMovementSpeed: 2
-    minCardsFastMovement: 8
-    maxCardsFastMovement: 15
+    fastMovementSpeed: 2.48
+    minCardsFastMovement: 64
+    maxCardsFastMovement: 64
     slowMovementSpeed: 0.7
     minCardsSlowMovement: 4
     maxCardsSlowMovement: 10
     alignedMovementSpeed: 1.3
     minCardsAlignedMovement: 5
     maxCardsAlignedMovement: 12
-    pulsingMovementSpeed: 1.8
-    minCardsPulsingMovement: 6
-    maxCardsPulsingMovement: 12
-    waveMovementSpeed: 1.5
-    minCardsWaveMovement: 7
-    maxCardsWaveMovement: 14
+    pulsingMovementSpeed: 2.5
+    minCardsPulsingMovement: 64
+    maxCardsPulsingMovement: 64
+    waveMovementSpeed: 3
+    minCardsWaveMovement: 64
+    maxCardsWaveMovement: 64
     quantumTeleportSpeed: 1.7
     minCardsQuantumTeleport: 8
     maxCardsQuantumTeleport: 16
@@ -4188,17 +4188,17 @@ MonoBehaviour:
     pulsingMovementSpeed: 1.8
     minCardsPulsingMovement: 6
     maxCardsPulsingMovement: 12
-    waveMovementSpeed: 1.5
-    minCardsWaveMovement: 7
-    maxCardsWaveMovement: 14
+    waveMovementSpeed: 3
+    minCardsWaveMovement: 100
+    maxCardsWaveMovement: 100
     quantumTeleportSpeed: 1.7
     minCardsQuantumTeleport: 8
     maxCardsQuantumTeleport: 16
     gravityWellsSpeed: 1.4
     minCardsGravityWells: 7
     maxCardsGravityWells: 15
-    minCardsStatic: 4
-    maxCardsStatic: 9
+    minCardsStatic: 100
+    maxCardsStatic: 100
     onlyOneColor: 1
   - scoreThreshold: 30
     minCards: 96

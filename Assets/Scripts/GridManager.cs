@@ -515,9 +515,53 @@ public class GridManager : MonoBehaviour
     // Nouvelle méthode pour valider/réparer le wanted card
     private void ValidateWantedCard()
     {
-        // Vérifier combien de cartes sont marquées comme "Wanted"
-        var wantedCards = cards.Where(c => c != null && c.characterName == "Wanted").ToList();
+        Debug.Log($"🔍 Validation de la wanted card - Nombre total de cartes : {cards.Count}");
         
+        // Vérifier combien de cartes sont marquées comme "Wanted"
+        var wantedCards = cards.Where(c => c != null && (c.characterName == "Wanted" || (GameManager.Instance != null && GameManager.Instance.wantedCharacter == c))).ToList();
+        
+        // Vérifier d'abord si GameManager a déjà une référence valide
+        if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != null)
+        {
+            CharacterCard gmWanted = GameManager.Instance.wantedCharacter;
+            
+            // Vérifier si cette carte existe toujours dans notre liste
+            if (cards.Contains(gmWanted))
+            {
+                Debug.Log($"✅ GameManager a une référence wanted valide : {gmWanted.characterName} (ID: {gmWanted.GetInstanceID()})");
+                
+                // S'assurer que le flag isWanted est correctement défini sur cette carte
+                if (gmWanted.characterName != "Wanted")
+                {
+                    Debug.LogWarning($"Correction: La carte référencée dans GameManager n'a pas le nom 'Wanted'");
+                    gmWanted.Initialize("Wanted", gmWanted.characterSprite);
+                }
+                
+                // Définir cette carte comme notre wantedCard
+                wantedCard = gmWanted;
+                wantedCard.SetAsWanted(true);
+                
+                // Réinitialiser les autres cartes marquées comme wanted
+                foreach (var card in wantedCards)
+                {
+                    if (card != wantedCard)
+                    {
+                        card.characterName = "Card_" + (cards.IndexOf(card));
+                        card.SetAsWanted(false);
+                        Debug.Log($"❌ Carte wanted supplémentaire réinitialisée : {cards.IndexOf(card)}");
+                    }
+                }
+                
+                return; // Travail terminé, on a une carte wanted valide
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ La référence du wanted dans GameManager n'existe plus dans notre liste de cartes!");
+                // On continuera avec la logique standard ci-dessous
+            }
+        }
+        
+        // Logique standard si GameManager n'a pas de référence valide
         if (wantedCards.Count == 0)
         {
             // Aucun wanted trouvé, créer un nouveau
@@ -529,11 +573,19 @@ public class GridManager : MonoBehaviour
                 cards[0].Initialize("Wanted", GameManager.Instance.GetRandomSprite());
                 cards[0].SetAsWanted(true);
                 wantedCard = cards[0];
+                
+                // IMPORTANT: Synchroniser avec GameManager
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.wantedCharacter = wantedCard;
+                }
+                
+                Debug.Log($"📌 Nouvelle wanted card créée avec sprite : {wantedCard.characterSprite.name}");
             }
             else
             {
                 // Situation critique, aucune carte disponible
-                Debug.LogError("Aucune carte disponible pour créer un wanted!");
+                Debug.LogError("❌ ERREUR CRITIQUE : Aucune carte disponible pour créer un wanted!");
             }
         }
         else if (wantedCards.Count > 1)
@@ -544,25 +596,53 @@ public class GridManager : MonoBehaviour
             wantedCard = wantedCards[0];
             wantedCard.SetAsWanted(true);
             
+            // IMPORTANT: Synchroniser avec GameManager
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.wantedCharacter = wantedCard;
+            }
+            
+            Debug.Log($"📌 Conservation de la wanted card : {wantedCard.characterSprite.name}");
+            
             // Réinitialiser les autres cartes
             for (int i = 1; i < wantedCards.Count; i++)
             {
                 wantedCards[i].characterName = "Card_" + (cards.IndexOf(wantedCards[i]));
                 wantedCards[i].SetAsWanted(false);
+                Debug.Log($"❌ Carte wanted supplémentaire réinitialisée : {i}");
             }
         }
         else
         {
-            // Exactement un wanted, donc on le mémorise
+            // Une seule carte wanted trouvée (situation normale)
             wantedCard = wantedCards[0];
-            // S'assurer que le wanted a priorité d'affichage
-            wantedCard.SetAsWanted(true);
+            
+            // IMPORTANT: Synchroniser avec GameManager
+            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != wantedCard)
+            {
+                Debug.Log($"Synchronisation de GameManager avec la carte wanted: {wantedCard.characterSprite.name}");
+                GameManager.Instance.wantedCharacter = wantedCard;
+            }
+            
+            Debug.Log($"✅ Carte wanted identifiée correctement : {wantedCard.characterSprite.name}");
         }
-
-        // Se souvenir du wanted card pour validation future
+        
+        // Vérification finale et synchronisation avec GameManager
         if (wantedCard != null)
         {
-            GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != wantedCard)
+            {
+                Debug.LogError($"⚠️ Échec de synchronisation! GridManager.wantedCard ≠ GameManager.wantedCharacter");
+                Debug.LogError($"GridManager.wantedCard : {wantedCard.characterSprite.name}");
+                Debug.LogError($"GameManager.wantedCharacter : {GameManager.Instance.wantedCharacter?.characterSprite?.name ?? "null"}");
+                
+                // Force la synchronisation
+                GameManager.Instance.wantedCharacter = wantedCard;
+            }
+            else
+            {
+                Debug.Log($"✅ Synchronisation réussie : GridManager et GameManager ont la même référence wanted");
+            }
         }
     }
 
@@ -2237,7 +2317,7 @@ public class GridManager : MonoBehaviour
     // Méthode d'urgence pour débloquer le jeu si nécessaire
     public void ResetGame()
     {
-        Debug.Log("🚨 RÉINITIALISATION D'URGENCE DU JEU 🚨");
+        Debug.Log("🔁 Réinitialisation du jeu après continuation 🔁");
         
         // Réinitialiser tous les états de contrôle
         isRouletteActive = false;
@@ -2246,11 +2326,15 @@ public class GridManager : MonoBehaviour
         StopAllCardMovements();
         StopAllCoroutines();
         
-        // Détruire toutes les cartes existantes
+        // Détruire toutes les cartes existantes et nettoyer proprement
+        Debug.Log($"Nettoyage des cartes existantes : {cards.Count} cartes");
         foreach (var existingCard in cards)
         {
             if (existingCard != null)
+            {
+                DOTween.Kill(existingCard.transform); // Arrêter toutes les animations
                 Destroy(existingCard.gameObject);
+            }
         }
         cards.Clear();
         wantedCard = null;
@@ -2258,11 +2342,72 @@ public class GridManager : MonoBehaviour
         // Réinitialiser l'historique des patterns
         lastUsedPatterns.Clear();
         
-        // Réinitialiser le jeu
-        InitializeGrid(true);
-        AnimateCardsEntry();
+        // S'assurer que le GameManager n'a pas de référence à une carte détruite
+        if (GameManager.Instance.wantedCharacter != null)
+        {
+            Debug.Log("Réinitialisation de la référence wantedCharacter dans GameManager");
+            // On ne fait pas GameManager.Instance.wantedCharacter = null directement
+            // car on va recréer une carte wanted ci-dessous
+        }
         
-        Debug.Log("Jeu réinitialisé avec succès.");
+        // S'assurer que le parent est actif
+        Transform parentTransform = gameBoardTransform != null ? gameBoardTransform : transform;
+        if (!parentTransform.gameObject.activeSelf)
+        {
+            Debug.LogWarning("Parent transform désactivé - Réactivation");
+            parentTransform.gameObject.SetActive(true);
+        }
+        
+        // Initialiser une nouvelle grille mais ne pas animer tout de suite
+        Debug.Log("Création d'une nouvelle grille sans animation");
+        InitializeGrid(false); // false = ne pas animer encore
+        
+        // VÉRIFICATION SUPPLÉMENTAIRE : S'assurer que toutes les cartes non-wanted ont bien isWanted=false
+        foreach (var card in cards)
+        {
+            if (card != null && card.characterName != "Wanted")
+            {
+                card.SetAsWanted(false);
+                Debug.Log($"Card {card.GetInstanceID()} -> isWanted explicitement mis à FALSE");
+            }
+        }
+        
+        // Valider et assurer qu'on a une carte wanted
+        ValidateWantedCard();
+        
+        // Vérification critique
+        if (wantedCard == null)
+        {
+            Debug.LogError("❌ ERREUR CRITIQUE: Pas de wanted card après ResetGame!");
+            
+            // Tentative de récupération d'urgence
+            if (cards.Count > 0)
+            {
+                Debug.Log("Tentative de récupération d'urgence - Création d'une carte wanted à partir de la première carte");
+                cards[0].Initialize("Wanted", GameManager.Instance.GetRandomSprite());
+                cards[0].SetAsWanted(true);
+                wantedCard = cards[0];
+            }
+            else
+            {
+                Debug.LogError("Aucune carte disponible pour récupération!");
+                return;
+            }
+        }
+        
+        // VÉRIFICATION FINALE : S'assurer que le wantedCard a bien isWanted=true
+        if (wantedCard != null)
+        {
+            wantedCard.SetAsWanted(true);
+            Debug.Log($"WantedCard {wantedCard.GetInstanceID()} -> isWanted explicitement mis à TRUE");
+        }
+        
+        // Informer explicitement le GameManager de la nouvelle wanted card
+        Debug.Log($"Informer GameManager de la nouvelle wanted card: {wantedCard.characterSprite.name}");
+        GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+        
+        // Ne pas animer tout de suite - la roulette UI s'en chargera
+        Debug.Log("Jeu réinitialisé avec succès. La roulette UI va démarrer.");
     }
 
     // Nouvelle méthode pour le mouvement de téléportation quantique
