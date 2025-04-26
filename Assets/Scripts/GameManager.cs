@@ -319,6 +319,13 @@ public class GameManager : MonoBehaviour
 
     public void SelectNewWantedCharacter(CharacterCard character)
     {
+        // Protection contre les nulls
+        if (character == null)
+        {
+            Debug.LogError("SelectNewWantedCharacter: character est null!");
+            return;
+        }
+
         // Empêcher les appels multiples pendant une roulette
         if (isSelectingNewWanted)
         {
@@ -329,7 +336,9 @@ public class GameManager : MonoBehaviour
         // Vérifier que le personnage n'est pas déjà le wanted
         if (wantedCharacter == character)
         {
-            Debug.LogWarning("GameManager: Tentative de sélectionner le même wanted character - Ignorée");
+            Debug.LogWarning($"GameManager: {character.characterName} est déjà le wanted character - Mise à jour du flag uniquement");
+            // S'assurer que le flag local est correctement défini
+            character.SetAsWanted(true);
             return;
         }
         
@@ -356,6 +365,32 @@ public class GameManager : MonoBehaviour
         
         AudioManager.Instance?.PlayWantedSelectionSound();
         wantedCharacter = character;
+        
+        // Réinitialiser toutes les cartes pour s'assurer qu'aucune autre n'est marquée comme wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            int cleanedCards = 0;
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null && card != character && card.characterName == "Wanted")
+                {
+                    // S'assurer que cette carte n'est PAS marquée comme wanted
+                    card.SetAsWanted(false);
+                    cleanedCards++;
+                }
+            }
+            
+            if (cleanedCards > 0)
+            {
+                Debug.Log($"Nettoyé {cleanedCards} carte(s) wanted indésirable(s)");
+            }
+        }
+        
+        // Marquer explicitement la nouvelle carte comme wanted
+        character.SetAsWanted(true);
+        
+        AudioManager.Instance?.PlayWantedSelectionSound();
         
         // Notifier les abonnés du changement (déclenche la roulette UI)
         onNewWantedCharacter.Invoke(character);
