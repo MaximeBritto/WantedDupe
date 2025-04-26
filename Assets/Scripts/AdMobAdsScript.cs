@@ -6,13 +6,23 @@ using UnityEngine.UI;
 
 public class AdMobAdsScript : MonoBehaviour
 {
-    public string appId = "ca-app-pub-2031850231197911~8065656844";
+    //test appId
+    public string appId = "ca-app-pub-3940256099942544~3347511713";
 
+    //test android ids
+    string bannerId = "ca-app-pub-3940256099942544/6300978111";
+    string interId = "ca-app-pub-3940256099942544/1033173712";
+    string rewardId = "ca-app-pub-3940256099942544/5224354917";
 
-    //android ids
-    string bannerId = "ca-app-pub-2031850231197911/1867606663";
-    string interId = "ca-app-pub-2031850231197911/1915181466";
-    string rewardId = "ca-app-pub-2031850231197911/8049871634";
+    /*
+     //build appId
+    public string appId = "ca-app-pub-7927443612072802~1904766119";
+
+    //build android ids
+    string bannerId = "ca-app-pub-7927443612072802/9591684442";
+    string interId = "ca-app-pub-7927443612072802/8278602770";
+    string rewardId = "ca-app-pub-7927443612072802/5660178297";
+    */
 
     BannerView bannerView;
     InterstitialAd interstitialAd;
