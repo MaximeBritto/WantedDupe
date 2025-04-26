@@ -2237,7 +2237,7 @@ public class GridManager : MonoBehaviour
     // Méthode d'urgence pour débloquer le jeu si nécessaire
     public void ResetGame()
     {
-        Debug.Log("🚨 RÉINITIALISATION D'URGENCE DU JEU 🚨");
+        Debug.Log("🔁 Réinitialisation du jeu après continuation 🔁");
         
         // Réinitialiser tous les états de contrôle
         isRouletteActive = false;
@@ -2258,9 +2258,26 @@ public class GridManager : MonoBehaviour
         // Réinitialiser l'historique des patterns
         lastUsedPatterns.Clear();
         
-        // Réinitialiser le jeu
-        InitializeGrid(true);
-        AnimateCardsEntry();
+        // Initialiser une nouvelle grille mais ne pas animer tout de suite
+        // IMPORTANT: Mettre false pour InitializeGrid pour ne pas animer les cartes
+        // et éviter de déclencher automatiquement une roulette
+        InitializeGrid(false); // false = ne pas animer encore
+        
+        // Valider et assurer qu'on a une carte wanted
+        ValidateWantedCard();
+        
+        if (wantedCard != null)
+        {
+            // Informer le GameManager de la nouvelle wanted card
+            // NOTE: Cela va déclencher la roulette UI
+            GameManager.Instance.SelectNewWantedCharacter(wantedCard);
+        }
+        else
+        {
+            Debug.LogError("❌ Pas de wanted card après ResetGame!");
+            // Fallback - animer les cartes directement au cas où
+            AnimateCardsEntry();
+        }
         
         Debug.Log("Jeu réinitialisé avec succès.");
     }

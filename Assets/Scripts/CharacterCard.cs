@@ -195,8 +195,15 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
             return;
 
-        if (GameManager.Instance.wantedCharacter == this)
+        // IMPORTANT: Afficher des logs de débogage pour diagnostiquer le problème
+        Debug.Log($"OnPointerDown sur {characterName} - isWanted={isWanted}");
+        Debug.Log($"GameManager.wantedCharacter={GameManager.Instance.wantedCharacter?.characterName}, this={gameObject.name}");
+        
+        // CORRECTION: utiliser isWanted au lieu de comparer les références
+        // Cela permet d'éviter les problèmes de références différentes pour le même objet
+        if (isWanted && GameManager.Instance.wantedCharacter == this)
         {
+            Debug.Log("☑️ CARTE CORRECTE DÉTECTÉE!");
             // Logique de réussite - Marquer cette carte spécifique comme cliquée
             alreadyClicked = true;
             AudioManager.Instance.PlayCorrect();
@@ -206,6 +213,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         {
             // Logique d'erreur
             // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            Debug.Log("❌ CARTE INCORRECTE: attendu=" + GameManager.Instance.wantedCharacter?.characterName);
             cardAnimation.PlayWrongAnimation();
             AudioManager.Instance.PlayWrong();
             GameManager.Instance.ApplyTimePenalty();
@@ -219,9 +227,16 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
 
         if (!GameManager.Instance.isGameActive || UIManager.Instance.isRouletteRunning)
             return;
+            
+        // IMPORTANT: Afficher des logs de débogage pour diagnostiquer le problème
+        Debug.Log($"OnCardClicked sur {characterName} - isWanted={isWanted}");
+        Debug.Log($"GameManager.wantedCharacter={GameManager.Instance.wantedCharacter?.characterName}, this={gameObject.name}");
 
-        if (GameManager.Instance.wantedCharacter == this)
+        // CORRECTION: utiliser isWanted au lieu de comparer les références
+        // Cela permet d'éviter les problèmes de références différentes pour le même objet
+        if (isWanted && GameManager.Instance.wantedCharacter == this)
         {
+            Debug.Log("☑️ CARTE CORRECTE DÉTECTÉE!");
             // Logique de réussite - Marquer cette carte spécifique comme cliquée
             alreadyClicked = true;
             AudioManager.Instance.PlayCorrect();
@@ -231,6 +246,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         {
             // Logique d'erreur
             // Ne pas marquer la carte comme cliquée pour permettre d'autres essais
+            Debug.Log("❌ CARTE INCORRECTE: attendu=" + GameManager.Instance.wantedCharacter?.characterName);
             cardAnimation.PlayWrongAnimation();
             AudioManager.Instance.PlayWrong();
             GameManager.Instance.ApplyTimePenalty();

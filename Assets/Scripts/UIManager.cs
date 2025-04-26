@@ -225,9 +225,6 @@ public class UIManager : MonoBehaviour
         startButton.onClick.AddListener(StartGame);
         restartButton.onClick.AddListener(StartGame);
 
-        // Démarrer la musique du menu
-        AudioManager.Instance?.StartMenuMusic();
-
         if (gameBoardImage != null)
         {
             gameBoardImage.color = new Color(0, 0, 0, 0.2f);
@@ -260,12 +257,39 @@ public class UIManager : MonoBehaviour
         
         if (continueButton != null)
         {
+            continueButton.onClick.RemoveAllListeners(); // Supprimer les listeners existants
             continueButton.onClick.AddListener(() => {
+                // Désactiver le bouton immédiatement pour éviter les doubles clics
+                continueButton.interactable = false;
+                
+                Debug.Log("Bouton Continue cliqué - tentative d'affichage de la pub récompensée");
+                
                 if (adMobAdsScript != null)
                 {
-                    adMobAdsScript.LoadRewardedAd();
-                    adMobAdsScript.ShowRewardedAd();
-                    HideContinueButton();  // Masquer le bouton après utilisation
+                    // Vérifier si la pub est déjà chargée
+                    bool isAdLoaded = adMobAdsScript.IsRewardedAdLoaded();
+                    Debug.Log($"État de la pub récompensée: {(isAdLoaded ? "Chargée" : "Non chargée")}");
+                    
+                    if (!isAdLoaded)
+                    {
+                        // Tenter un chargement immédiat
+                        adMobAdsScript.LoadRewardedAd();
+                        
+                        // Attendre un peu et vérifier à nouveau
+                        StartCoroutine(TryShowRewardedAfterDelay());
+                    }
+                    else
+                    {
+                        // La pub est déjà chargée, on peut l'afficher directement
+                        adMobAdsScript.ShowRewardedAd();
+                        HideContinueButton();
+                    }
+                }
+                else
+                {
+                    Debug.LogError("AdMobAdsScript est null - impossible d'afficher la pub récompensée");
+                    // Ré-activer le bouton en cas d'erreur
+                    continueButton.interactable = true;
                 }
             });
         }
@@ -280,6 +304,12 @@ public class UIManager : MonoBehaviour
                     comboImage.gameObject.SetActive(false);
                 }
             }
+        }
+        
+        // Démarrer la musique du menu
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StartMenuMusic();
         }
     }
 
@@ -656,6 +686,17 @@ public class UIManager : MonoBehaviour
             }
         }
 
+        // S'assurer que les boutons sont actifs et interactifs pour la prochaine fois
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+        }
+        
+        if (continueButton != null)
+        {
+            continueButton.interactable = true;
+        }
+
         if (SafeArea != null)
         {
             SafeArea.SetActive(true);
@@ -715,24 +756,64 @@ public class UIManager : MonoBehaviour
             }
         }
 
-        // Démarrer la musique du menu
-        AudioManager.Instance?.StartMenuMusic();
+        // CORRECTION: S'assurer que le bouton restart est toujours interactif
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+            // Réassigner le listener au cas où il aurait été perdu
+            restartButton.onClick.RemoveAllListeners();
+            restartButton.onClick.AddListener(StartGame);
+        }
 
+        // Gérer l'affichage du bouton continue
         if (continueButton != null)
         {
-            continueButton.gameObject.SetActive(isNewGame);
+            // Afficher le bouton continue uniquement si c'est une première partie
+            // ou si le joueur n'a pas déjà utilisé le continue dans cette session
+            bool shouldShowContinue = isNewGame && !hasUsedContinue;
+            continueButton.gameObject.SetActive(shouldShowContinue);
+            continueButton.interactable = true; // S'assurer que le bouton est interactif
+            
+            Debug.Log($"Bouton continue affiché: {shouldShowContinue}, isNewGame: {isNewGame}, hasUsedContinue: {hasUsedContinue}");
+            
+            // Précharger la pub récompensée si le bouton est affiché
+            if (shouldShowContinue && adMobAdsScript != null)
+            {
+                Debug.Log("Préchargement de la pub récompensée pour le bouton Continue");
+                adMobAdsScript.LoadRewardedAd();
+            }
+        }
+        
+        // Démarrer la musique du menu game over
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StartMenuMusic();
         }
     }
 
     private void StartGame()
     {
-        isNewGame = true;  // Réinitialiser le flag de nouvelle partie
-        hasUsedContinue = false;  // Réinitialiser le flag d'utilisation du continue
+        Debug.Log("StartGame appelé - Réinitialisation des flags isNewGame et hasUsedContinue");
+        
+        // IMPORTANT: Toujours réinitialiser ces flags lors du démarrage d'une nouvelle partie
+        isNewGame = true;
+        hasUsedContinue = false;
         
         // Mettre à jour l'affichage du meilleur score
         if (bestScoreText != null && GameManager.Instance != null)
         {
             bestScoreText.text = $"Meilleur Score : {GameManager.Instance.bestScore}";
+        }
+        
+        // S'assurer que les boutons sont dans un état correct
+        if (restartButton != null)
+        {
+            restartButton.interactable = true;
+        }
+        
+        if (continueButton != null)
+        {
+            continueButton.interactable = true;
         }
         
         GameManager.Instance.StartGame();
@@ -863,9 +944,11 @@ public class UIManager : MonoBehaviour
     {
         if (continueButton != null)
         {
+            Debug.Log("Masquage du bouton Continue et marquage comme utilisé");
             continueButton.gameObject.SetActive(false);
             hasUsedContinue = true;
-            isNewGame = false;  // Indiquer que ce n'est plus une nouvelle partie
+            // CORRECTION: Ne pas modifier isNewGame ici car cela empêche le bouton restart de fonctionner
+            // isNewGame = false;  -- SUPPRIMÉ
         }
     }
 
@@ -899,5 +982,46 @@ public class UIManager : MonoBehaviour
         // Forcer une mise à jour du layout
         LayoutRebuilder.ForceRebuildLayoutImmediate(timerText.rectTransform);
         Canvas.ForceUpdateCanvases();
+    }
+
+    private IEnumerator TryShowRewardedAfterDelay()
+    {
+        // Attendre un court délai pour donner une chance à la pub de se charger
+        yield return new WaitForSeconds(1.5f);
+        
+        if (adMobAdsScript != null)
+        {
+            bool isAdLoaded = adMobAdsScript.IsRewardedAdLoaded();
+            Debug.Log($"Deuxième vérification de la pub récompensée: {(isAdLoaded ? "Chargée" : "Toujours non chargée")}");
+            
+            if (isAdLoaded)
+            {
+                adMobAdsScript.ShowRewardedAd();
+                HideContinueButton();
+            }
+            else
+            {
+                // Informer l'utilisateur que la pub n'est pas disponible
+                Debug.LogWarning("La pub récompensée n'a pas pu être chargée");
+                
+                // Ré-activer le bouton pour permettre un nouvel essai
+                if (continueButton != null)
+                {
+                    continueButton.interactable = true;
+                }
+            }
+        }
+    }
+
+    public void OnRewardedAdClosed(bool wasError)
+    {
+        Debug.Log($"Pub récompensée fermée. Erreur: {wasError}");
+        
+        // Si c'était une erreur, réactiver le bouton pour permettre une nouvelle tentative
+        if (wasError && continueButton != null)
+        {
+            continueButton.interactable = true;
+            Debug.Log("Réactivation du bouton Continue après erreur");
+        }
     }
 }

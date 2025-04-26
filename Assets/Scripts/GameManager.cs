@@ -60,6 +60,12 @@ public class GameManager : MonoBehaviour
 
     private float savedTimeRemaining;  // Pour sauvegarder le temps restant
 
+    // Nouvelles variables pour sauvegarder l'état du combo
+    private int savedComboCount = 0;
+    private bool[] savedComboImageStates = new bool[5];
+    private Vector3[] savedComboImageScales = new Vector3[5]; // Nouveau: sauvegarder les échelles
+    private string savedIncreScore = "0";
+
     private void Awake()
     {
         if (Instance == null)
@@ -139,6 +145,41 @@ public class GameManager : MonoBehaviour
         isGameActive = false;
         savedTimeRemaining = timeRemaining;  // Sauvegarder le temps restant
         
+        // Sauvegarder l'état des étoiles de combo
+        savedComboCount = (int)currentComboCount;
+        
+        // Sauvegarder l'état des images de combo
+        if (UIManager.Instance != null && UIManager.Instance.comboImages != null)
+        {
+            Image[] comboImages = UIManager.Instance.comboImages;
+            savedComboImageStates = new bool[comboImages.Length];
+            savedComboImageScales = new Vector3[comboImages.Length]; // Initialiser le tableau d'échelles
+            
+            for (int i = 0; i < comboImages.Length && i < savedComboImageStates.Length; i++)
+            {
+                if (comboImages[i] != null)
+                {
+                    savedComboImageStates[i] = comboImages[i].gameObject.activeSelf;
+                    
+                    // Sauvegarder l'échelle exacte de chaque étoile
+                    if (comboImages[i].transform != null)
+                    {
+                        savedComboImageScales[i] = comboImages[i].transform.localScale;
+                    }
+                    else
+                    {
+                        savedComboImageScales[i] = new Vector3(0.8f, 0.8f, 0.8f); // Une valeur par défaut plus petite
+                    }
+                }
+            }
+            
+            // Sauvegarder le score incrémental
+            if (UIManager.Instance.increScore != null)
+            {
+                savedIncreScore = UIManager.Instance.increScore.text;
+            }
+        }
+        
         // Détruire la bannière publicitaire
         if (adMobAdsScript != null)
         {
@@ -157,14 +198,28 @@ public class GameManager : MonoBehaviour
             SaveBestScore();
         }
         
-        // Vérifier si c'est la 2ème partie
+        // Vérifier si c'est la bonne partie pour montrer l'interstitiel (tous les 2 jeux)
         if (gameCount % 2 == 0 && adMobAdsScript != null)
         {
-            // Afficher l'interstitial avant l'écran de game over
-            StartCoroutine(ShowInterstitialThenGameOver());
+            Debug.Log($"GameOver: Tentative d'affichage de l'interstitiel - gameCount={gameCount}");
+            
+            // S'assurer que la pub est chargée
+            if (adMobAdsScript != null)
+            {
+                // Précharger la pub pour s'assurer qu'elle est prête
+                adMobAdsScript.LoadInterstitialAd();
+                // Attendre un peu puis afficher la pub et l'écran de game over
+                StartCoroutine(ShowInterstitialThenGameOver());
+            }
+            else
+            {
+                Debug.LogError("GameOver: adMobAdsScript est null");
+                StartCoroutine(RevealWantedAndGameOver());
+            }
         }
         else
         {
+            Debug.Log($"GameOver: Pas d'interstitiel cette fois - gameCount={gameCount}");
             // On déclenche la séquence pour ne laisser que le Wanted visible
             StartCoroutine(RevealWantedAndGameOver());
         }
@@ -193,19 +248,37 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        // Attendre que l'animation se termine
         yield return new WaitForSeconds(1f);
 
         // Montrer l'interstitial
         if (adMobAdsScript != null)
         {
-            adMobAdsScript.LoadInterstitialAd();
-            adMobAdsScript.ShowInterstitialAd();
+            Debug.Log("ShowInterstitialThenGameOver: Tentative d'affichage de l'interstitiel");
+            
+            // Vérifier si la pub est chargée
+            if (adMobAdsScript.IsInterstitialAdLoaded())
+            {
+                Debug.Log("L'interstitiel est chargé, on l'affiche");
+                adMobAdsScript.ShowInterstitialAd();
+                
+                // Attendre suffisamment longtemps pour que l'interstitiel s'affiche
+                yield return new WaitForSeconds(1.5f);
+            }
+            else
+            {
+                Debug.LogWarning("L'interstitiel n'est pas chargé, on continue sans l'afficher");
+                // Tenter de charger pour la prochaine fois
+                adMobAdsScript.LoadInterstitialAd();
+            }
+        }
+        else
+        {
+            Debug.LogError("ShowInterstitialThenGameOver: adMobAdsScript est null");
         }
 
-        // Attendre un peu pour s'assurer que l'interstitial a eu le temps de s'afficher
-        yield return new WaitForSeconds(0.5f);
-
-        // Afficher l'écran de game over
+        // Afficher l'écran de game over dans tous les cas
+        Debug.Log("ShowInterstitialThenGameOver: Affichage de l'écran de game over");
         onGameOver.Invoke();
     }
 
@@ -261,6 +334,25 @@ public class GameManager : MonoBehaviour
         }
         
         isSelectingNewWanted = true;
+        
+        Debug.Log($"🔄 Sélection d'un nouveau wanted: {character.characterName}");
+        
+        // Réinitialiser toutes les cartes pour s'assurer qu'aucune autre n'est marquée comme wanted
+        var gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null && card != character)
+                {
+                    // S'assurer que cette carte n'est PAS marquée comme wanted
+                    card.SetAsWanted(false);
+                }
+            }
+        }
+        
+        // Marquer explicitement la nouvelle carte comme wanted
+        character.SetAsWanted(true);
         
         AudioManager.Instance?.PlayWantedSelectionSound();
         wantedCharacter = character;
@@ -402,8 +494,15 @@ public class GameManager : MonoBehaviour
     // Nouvelle méthode pour continuer la partie après la rewarded ad
     public void ContinueGame()
     {
+        Debug.Log("ContinueGame appelé - Relance du niveau");
+        
+        // Réactiver le statut du jeu
         isGameActive = true;
+        
+        // Restaurer le temps avec un bonus
         timeRemaining = savedTimeRemaining + 10f;  // Ajouter 10 secondes bonus
+        
+        // Redémarrer la musique
         AudioManager.Instance?.StartBackgroundMusic();
         
         // Recharger la bannière
@@ -412,18 +511,77 @@ public class GameManager : MonoBehaviour
             adMobAdsScript.LoadBannerAd();
         }
 
-        // Valider le point actuel et passer au suivant
-        if (wantedCharacter != null)
-        {
-            AudioManager.Instance?.PlayCorrect();
-            displayedScore += 1;
-            onScoreChanged.Invoke(displayedScore);
-            StartNewRound();
-        }
-
-        // Masquer le menu game over
+        // Masquer le menu game over et afficher l'interface de jeu
         UIManager.Instance?.OnGameStart();
         
+        // Important: récupérer le GridManager et réinitialiser correctement le jeu
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        if (gridManager != null)
+        {
+            // CORRECTION: Ne pas appeler à la fois ResetGame et CreateNewWanted
+            // car cela déclenche deux roulettes
+            
+            // Option 1: N'appeler que ResetGame qui va gérer toute la logique
+            gridManager.ResetGame();
+            
+            // !! Ne pas appeler CreateNewWanted() ici pour éviter une double roulette !!
+            // gridManager.CreateNewWanted(); -- SUPPRIMÉ
+        }
+        else
+        {
+            Debug.LogError("GridManager non trouvé dans ContinueGame");
+        }
+        
+        // Restaurer l'état des étoiles de combo
+        RestoreComboState();
+        
+        // Redémarrer le timer
         StartCoroutine(GameTimer());
+    }
+    
+    // Nouvelle méthode pour restaurer l'état des étoiles de combo
+    private void RestoreComboState()
+    {
+        Debug.Log($"Restauration de l'état du combo: {savedComboCount} étoiles");
+        
+        // Restaurer le compteur de combo
+        currentComboCount = savedComboCount;
+        
+        // Restaurer l'état des images de combo
+        if (UIManager.Instance != null && UIManager.Instance.comboImages != null)
+        {
+            Image[] comboImages = UIManager.Instance.comboImages;
+            
+            for (int i = 0; i < comboImages.Length && i < savedComboImageStates.Length; i++)
+            {
+                if (comboImages[i] != null)
+                {
+                    // Activer/désactiver l'image selon l'état sauvegardé
+                    comboImages[i].gameObject.SetActive(savedComboImageStates[i]);
+                    
+                    // Restaurer l'échelle exacte de l'étoile
+                    if (savedComboImageStates[i] && i < savedComboImageScales.Length)
+                    {
+                        // Utiliser l'échelle sauvegardée ou une valeur par défaut si l'échelle est nulle (0,0,0)
+                        Vector3 scale = savedComboImageScales[i];
+                        if (scale.magnitude < 0.1f) // Si l'échelle est presque nulle
+                        {
+                            scale = new Vector3(0.8f, 0.8f, 0.8f); // Utiliser une échelle légèrement réduite
+                        }
+                        
+                        comboImages[i].transform.localScale = scale;
+                        
+                        // Arrêter toute animation DOTween en cours sur cette étoile
+                        DOTween.Kill(comboImages[i].transform);
+                    }
+                }
+            }
+            
+            // Restaurer le score incrémental
+            if (UIManager.Instance.increScore != null && !string.IsNullOrEmpty(savedIncreScore))
+            {
+                UIManager.Instance.increScore.text = savedIncreScore;
+            }
+        }
     }
 }

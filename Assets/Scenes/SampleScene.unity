@@ -3220,7 +3220,7 @@ MonoBehaviour:
     - {fileID: 8296324621450185297, guid: 68235dc929ed3cc41ab4d257d408c86e, type: 3}
     - {fileID: -1250728884378928431, guid: a41d2863431554945b0c173983e637c4, type: 3}
     - {fileID: -5264198331102626987, guid: 72290de0cd66bc64fb90488fdf56d195, type: 3}
-  roundDuration: 10
+  roundDuration: 15
   startingGridSize: 16
   scorePerCorrectClick: 1
   timeRemaining: 0
@@ -3239,7 +3239,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   maxTime: 40
-  penaltyTime: 5
+  penaltyTime: 3
   maxComboMultiplier: 5
   displayedScore: 0
   bestScore: 0
@@ -3645,7 +3645,7 @@ MonoBehaviour:
     minCards: 4
     maxCards: 4
     moveSpeed: 10
-    possibleStates: 01000000
+    possibleStates: 0100000007000000
     infiniteDifficultyEnabled: 0
     speedIncrementPerRound: 0.3
     fixedColumns: 2
