@@ -478,36 +478,6 @@ public class UIManager : MonoBehaviour
         // Désactiver temporairement la grille pour éviter un pattern en arrière-plan
         gridCanvas.gameObject.SetActive(false);
         
-        // Vérifications de sécurité pour la carte à afficher
-        if (finalCharacter == null)
-        {
-            Debug.LogError("❌ ERREUR: WantedRouletteEffect appelé avec une carte null!");
-            
-            // Utiliser une carte par défaut (celle du GameManager si disponible)
-            if (GameManager.Instance.wantedCharacter != null)
-            {
-                finalCharacter = GameManager.Instance.wantedCharacter;
-                Debug.Log("♻️ Récupération de la carte depuis GameManager: " + finalCharacter.characterName);
-            }
-            else
-            {
-                // Situation critique - terminer la roulette sans animation
-                isRouletteRunning = false;
-                gridCanvas.gameObject.SetActive(wasGridActive);
-                GameManager.Instance.ResumeGame();
-                yield break;
-            }
-        }
-        
-        if (finalCharacter.characterSprite == null)
-        {
-            Debug.LogError("❌ ERREUR: La carte finale n'a pas de sprite!");
-            // Assigner un sprite par défaut
-            finalCharacter.characterSprite = GameManager.Instance.GetRandomSprite();
-        }
-        
-        Debug.Log($"🎲 Démarrage de la roulette UI pour: {finalCharacter.characterName} (sprite: {finalCharacter.characterSprite.name})");
-        
         if (wantedCharacterImage.sprite == null)
         {
             wantedCharacterImage.sprite = GameManager.Instance.GetRandomSprite();
@@ -542,27 +512,8 @@ public class UIManager : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
-        // IMPORTANT: S'assurer que le sprite final est correctement affiché
-        // Double vérification pour être sûr que la carte finale est à jour
-        CharacterCard currentWanted = GameManager.Instance.wantedCharacter;
-        if (currentWanted != null && currentWanted != finalCharacter)
-        {
-            Debug.LogWarning("⚠️ Changement détecté pendant la roulette!");
-            Debug.Log($"Original: {finalCharacter.characterName} -> Nouveau: {currentWanted.characterName}");
-            finalCharacter = currentWanted;
-        }
-        
         // Afficher le sprite final du wanted
-        if (finalCharacter != null && finalCharacter.characterSprite != null)
-        {
-            wantedCharacterImage.sprite = finalCharacter.characterSprite;
-            Debug.Log($"✅ Fin de la roulette - Affichage du sprite final: {finalCharacter.characterSprite.name}");
-        }
-        else
-        {
-            Debug.LogError("❌ ERREUR: Impossible d'afficher le sprite final - wanted ou sprite null!");
-        }
-        
+        wantedCharacterImage.sprite = finalCharacter.characterSprite;
         AudioManager.Instance.PlayCorrect();
 
         yield return new WaitForSeconds(0.5f);
@@ -593,28 +544,59 @@ public class UIManager : MonoBehaviour
         GridManager gridManager = FindObjectOfType<GridManager>();
         if (gridManager != null)
         {
-            // Assurer la synchronisation avec la grille
-            if (gridManager.wantedCard != finalCharacter)
+            Debug.Log("UIManager: Préparation des cartes après roulette");
+            
+            // VÉRIFICATION SUPPLÉMENTAIRE: S'assurer que le parent des cartes est actif
+            Transform parentTransform = gridManager.gameBoardTransform != null ? 
+                gridManager.gameBoardTransform : gridManager.transform;
+            if (!parentTransform.gameObject.activeSelf)
             {
-                Debug.LogWarning("⚠️ Désynchronisation entre UIManager et GridManager");
-                if (GameManager.Instance.wantedCharacter != null)
+                Debug.LogWarning("CORRECTION: Le parent des cartes était désactivé - Réactivation");
+                parentTransform.gameObject.SetActive(true);
+            }
+            
+            // Identifier le pattern actuel
+            string patternType = gridManager.CurrentState.ToString();
+            Debug.Log($"UIManager: Pattern détecté: {patternType}");
+            
+            // Préparer toutes les cartes à être à échelle zéro AVANT le placement
+            foreach (var card in gridManager.cards)
+            {
+                if (card != null)
                 {
-                    Debug.Log($"Correction avec GameManager.wantedCharacter: {GameManager.Instance.wantedCharacter.characterName}");
-                    finalCharacter = GameManager.Instance.wantedCharacter;
+                    card.gameObject.SetActive(true);
+                    card.transform.localScale = Vector3.zero;
+                    
+                    // Stopper toute animation en cours sur cette carte
+                    DOTween.Kill(card.transform);
                 }
             }
             
-            // Anime toutes les cartes
+            // UN SEUL APPEL à ArrangeCardsBasedOnState pour éviter les doubles placements
+            // Cela positionne initialement les cartes au bon endroit
+            gridManager.ArrangeCardsBasedOnState();
+            
+            // Log pour déboguer le nombre de cartes
+            Debug.Log($"Nombre de cartes à animer: {gridManager.cards.Count}");
+            
+            // Attendre un court délai avant d'animer l'entrée des cartes
+            yield return new WaitForSeconds(0.4f);
+            
+            // Animer l'entrée des cartes maintenant que tout est correctement positionné
+            Debug.Log("UIManager: Animation des cartes après positionnement");
             gridManager.AnimateCardsEntry();
+            
+            // Ajouter une solution de secours pour s'assurer que les cartes sont visibles
+            StartCoroutine(ForceShowCardsBackup(gridManager, 0.5f));
         }
         else
         {
-            Debug.LogError("GridManager non trouvé!");
+            Debug.LogError("UIManager: GridManager introuvable après la roulette!");
         }
-
-        // Reprendre la partie quand toutes les animations sont terminées
+        
         GameManager.Instance.ResumeGame();
         isRouletteRunning = false;
+        Debug.Log("UIManager: Fin de la roulette UI");
     }
     
     // Méthode de secours qui force l'affichage des cartes après un délai

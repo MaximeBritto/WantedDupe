@@ -112,50 +112,19 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
     // Méthode pour définir si cette carte est la carte recherchée
     public void SetAsWanted(bool wanted)
     {
-        Debug.Log($"SetAsWanted({wanted}) sur {characterName} {GetInstanceID()}");
-        
-        // Mettre à jour le flag interne
         isWanted = wanted;
         
-        // Si le nom change pour "Wanted", mettre à jour
-        if (wanted && characterName != "Wanted")
-        {
-            characterName = "Wanted";
-            Debug.Log($"Nom changé en 'Wanted' pour {GetInstanceID()}");
-        }
-        
         // Si c'est la carte recherchée, ajuster l'ordre d'affichage
+        // NOTE: Nous n'utilisons plus Canvas.sortingOrder mais la propriété siblingIndex pour l'ordre
         if (isWanted)
         {
             // Mettre la carte wanted "sous" les autres cartes (indice plus petit)
             transform.SetSiblingIndex(0);
-            Debug.Log($"Carte {GetInstanceID()} définie comme wanted et placée en bas de pile (index 0)");
-            
-            // IMPORTANT: Synchroniser avec GameManager si ce n'est pas déjà fait
-            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != this)
-            {
-                Debug.Log($"Mise à jour automatique de GameManager.wantedCharacter avec cette carte ({GetInstanceID()})");
-                GameManager.Instance.wantedCharacter = this;
-            }
         }
         else
         {
             // Mettre les autres cartes "au-dessus" (indice plus grand)
             transform.SetSiblingIndex(transform.parent.childCount - 1);
-            Debug.Log($"Carte {GetInstanceID()} définie comme NON-wanted et placée en haut de pile");
-            
-            // Si cette carte était référencée dans GameManager, corriger cela
-            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter == this)
-            {
-                Debug.LogWarning($"Correction: Cette carte ({GetInstanceID()}) n'est plus wanted mais était encore référencée dans GameManager");
-                GameManager.Instance.wantedCharacter = null;
-            }
-        }
-        
-        // Vérification finale pour garantir la cohérence
-        if (isWanted && GameManager.Instance != null && GameManager.Instance.wantedCharacter != this)
-        {
-            Debug.LogError($"ERREUR CRITIQUE: Incohérence persistante - Cette carte ({GetInstanceID()}) est wanted mais pas dans GameManager!");
         }
     }
 

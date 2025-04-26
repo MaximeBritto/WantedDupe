@@ -515,53 +515,9 @@ public class GridManager : MonoBehaviour
     // Nouvelle méthode pour valider/réparer le wanted card
     private void ValidateWantedCard()
     {
-        Debug.Log($"🔍 Validation de la wanted card - Nombre total de cartes : {cards.Count}");
-        
         // Vérifier combien de cartes sont marquées comme "Wanted"
-        var wantedCards = cards.Where(c => c != null && (c.characterName == "Wanted" || (GameManager.Instance != null && GameManager.Instance.wantedCharacter == c))).ToList();
+        var wantedCards = cards.Where(c => c != null && c.characterName == "Wanted").ToList();
         
-        // Vérifier d'abord si GameManager a déjà une référence valide
-        if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != null)
-        {
-            CharacterCard gmWanted = GameManager.Instance.wantedCharacter;
-            
-            // Vérifier si cette carte existe toujours dans notre liste
-            if (cards.Contains(gmWanted))
-            {
-                Debug.Log($"✅ GameManager a une référence wanted valide : {gmWanted.characterName} (ID: {gmWanted.GetInstanceID()})");
-                
-                // S'assurer que le flag isWanted est correctement défini sur cette carte
-                if (gmWanted.characterName != "Wanted")
-                {
-                    Debug.LogWarning($"Correction: La carte référencée dans GameManager n'a pas le nom 'Wanted'");
-                    gmWanted.Initialize("Wanted", gmWanted.characterSprite);
-                }
-                
-                // Définir cette carte comme notre wantedCard
-                wantedCard = gmWanted;
-                wantedCard.SetAsWanted(true);
-                
-                // Réinitialiser les autres cartes marquées comme wanted
-                foreach (var card in wantedCards)
-                {
-                    if (card != wantedCard)
-                    {
-                        card.characterName = "Card_" + (cards.IndexOf(card));
-                        card.SetAsWanted(false);
-                        Debug.Log($"❌ Carte wanted supplémentaire réinitialisée : {cards.IndexOf(card)}");
-                    }
-                }
-                
-                return; // Travail terminé, on a une carte wanted valide
-            }
-            else
-            {
-                Debug.LogWarning("⚠️ La référence du wanted dans GameManager n'existe plus dans notre liste de cartes!");
-                // On continuera avec la logique standard ci-dessous
-            }
-        }
-        
-        // Logique standard si GameManager n'a pas de référence valide
         if (wantedCards.Count == 0)
         {
             // Aucun wanted trouvé, créer un nouveau
@@ -573,19 +529,11 @@ public class GridManager : MonoBehaviour
                 cards[0].Initialize("Wanted", GameManager.Instance.GetRandomSprite());
                 cards[0].SetAsWanted(true);
                 wantedCard = cards[0];
-                
-                // IMPORTANT: Synchroniser avec GameManager
-                if (GameManager.Instance != null)
-                {
-                    GameManager.Instance.wantedCharacter = wantedCard;
-                }
-                
-                Debug.Log($"📌 Nouvelle wanted card créée avec sprite : {wantedCard.characterSprite.name}");
             }
             else
             {
                 // Situation critique, aucune carte disponible
-                Debug.LogError("❌ ERREUR CRITIQUE : Aucune carte disponible pour créer un wanted!");
+                Debug.LogError("Aucune carte disponible pour créer un wanted!");
             }
         }
         else if (wantedCards.Count > 1)
@@ -596,53 +544,25 @@ public class GridManager : MonoBehaviour
             wantedCard = wantedCards[0];
             wantedCard.SetAsWanted(true);
             
-            // IMPORTANT: Synchroniser avec GameManager
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.wantedCharacter = wantedCard;
-            }
-            
-            Debug.Log($"📌 Conservation de la wanted card : {wantedCard.characterSprite.name}");
-            
             // Réinitialiser les autres cartes
             for (int i = 1; i < wantedCards.Count; i++)
             {
                 wantedCards[i].characterName = "Card_" + (cards.IndexOf(wantedCards[i]));
                 wantedCards[i].SetAsWanted(false);
-                Debug.Log($"❌ Carte wanted supplémentaire réinitialisée : {i}");
             }
         }
         else
         {
-            // Une seule carte wanted trouvée (situation normale)
+            // Exactement un wanted, donc on le mémorise
             wantedCard = wantedCards[0];
-            
-            // IMPORTANT: Synchroniser avec GameManager
-            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != wantedCard)
-            {
-                Debug.Log($"Synchronisation de GameManager avec la carte wanted: {wantedCard.characterSprite.name}");
-                GameManager.Instance.wantedCharacter = wantedCard;
-            }
-            
-            Debug.Log($"✅ Carte wanted identifiée correctement : {wantedCard.characterSprite.name}");
+            // S'assurer que le wanted a priorité d'affichage
+            wantedCard.SetAsWanted(true);
         }
-        
-        // Vérification finale et synchronisation avec GameManager
+
+        // Se souvenir du wanted card pour validation future
         if (wantedCard != null)
         {
-            if (GameManager.Instance != null && GameManager.Instance.wantedCharacter != wantedCard)
-            {
-                Debug.LogError($"⚠️ Échec de synchronisation! GridManager.wantedCard ≠ GameManager.wantedCharacter");
-                Debug.LogError($"GridManager.wantedCard : {wantedCard.characterSprite.name}");
-                Debug.LogError($"GameManager.wantedCharacter : {GameManager.Instance.wantedCharacter?.characterSprite?.name ?? "null"}");
-                
-                // Force la synchronisation
-                GameManager.Instance.wantedCharacter = wantedCard;
-            }
-            else
-            {
-                Debug.Log($"✅ Synchronisation réussie : GridManager et GameManager ont la même référence wanted");
-            }
+            GameManager.Instance.SelectNewWantedCharacter(wantedCard);
         }
     }
 
@@ -2326,15 +2246,11 @@ public class GridManager : MonoBehaviour
         StopAllCardMovements();
         StopAllCoroutines();
         
-        // Détruire toutes les cartes existantes et nettoyer proprement
-        Debug.Log($"Nettoyage des cartes existantes : {cards.Count} cartes");
+        // Détruire toutes les cartes existantes
         foreach (var existingCard in cards)
         {
             if (existingCard != null)
-            {
-                DOTween.Kill(existingCard.transform); // Arrêter toutes les animations
                 Destroy(existingCard.gameObject);
-            }
         }
         cards.Clear();
         wantedCard = null;

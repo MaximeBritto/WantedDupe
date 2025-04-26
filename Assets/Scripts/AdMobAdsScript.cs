@@ -179,10 +179,6 @@ public class AdMobAdsScript : MonoBehaviour
         {
             Debug.LogError("Exception lors de l'affichage de la pub interstitielle: " + e.Message);
         }
-        catch (System.Exception e)
-        {
-            Debug.LogError("Exception lors de l'affichage de la pub interstitielle: " + e.Message);
-        }
     }
     public void InterstitialEvent(InterstitialAd ad) {
         // Raised when the ad is estimated to have earned money.
@@ -277,15 +273,6 @@ public class AdMobAdsScript : MonoBehaviour
                 {
                     UIManager.Instance.OnRewardedAdClosed(true);
                 }
-            }
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("Exception lors de l'affichage de la pub récompensée: " + e.Message);
-            // Informer UIManager de l'erreur
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.OnRewardedAdClosed(true);
             }
         }
         catch (System.Exception e)
