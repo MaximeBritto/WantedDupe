@@ -120,6 +120,9 @@ public class GameManager : MonoBehaviour
         displayedScore = 0f;
         currentComboCount = 0;
         
+        // Déclencher explicitement l'événement de score changé pour forcer la mise à jour de l'interface
+        onScoreChanged.Invoke(0f);
+        
         timeRemaining = roundDuration;
         isGameActive = true;
         onGameStart.Invoke();

@@ -970,7 +970,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f578cec68ef5c7a4db559f84fb40449a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  appId: ca-app-pub-2031850231197911~8065656844
+  useTestIds: 1
 --- !u!4 &257771399
 Transform:
   m_ObjectHideFlags: 0
@@ -3220,7 +3220,7 @@ MonoBehaviour:
     - {fileID: 8296324621450185297, guid: 68235dc929ed3cc41ab4d257d408c86e, type: 3}
     - {fileID: -1250728884378928431, guid: a41d2863431554945b0c173983e637c4, type: 3}
     - {fileID: -5264198331102626987, guid: 72290de0cd66bc64fb90488fdf56d195, type: 3}
-  roundDuration: 10
+  roundDuration: 15
   startingGridSize: 16
   scorePerCorrectClick: 1
   timeRemaining: 0
@@ -3239,7 +3239,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   maxTime: 40
-  penaltyTime: 5
+  penaltyTime: 4
   maxComboMultiplier: 5
   displayedScore: 0
   bestScore: 0

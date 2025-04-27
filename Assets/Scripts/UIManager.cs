@@ -803,6 +803,30 @@ public class UIManager : MonoBehaviour
             continueButton.interactable = true;
         }
         
+        // S'ASSURER que le score est réinitialisé visuellement avant de démarrer le jeu
+        if (scoreText != null)
+        {
+            scoreText.text = "0";
+        }
+        
+        // Réinitialiser les étoiles de combo
+        if (comboImages != null)
+        {
+            foreach (var comboImage in comboImages)
+            {
+                if (comboImage != null)
+                {
+                    comboImage.gameObject.SetActive(false);
+                }
+            }
+        }
+        
+        // Réinitialiser le score incrémental
+        if (increScore != null)
+        {
+            increScore.text = "0";
+        }
+        
         GameManager.Instance.StartGame();
     }
 
