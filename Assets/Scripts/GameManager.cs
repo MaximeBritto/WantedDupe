@@ -84,6 +84,12 @@ public class GameManager : MonoBehaviour
         // Récupérer la référence à AdMobAdsScript
         adMobAdsScript = FindObjectOfType<AdMobAdsScript>();
         
+        // Précharger les publicités récompensées
+        if (adMobAdsScript != null)
+        {
+            adMobAdsScript.LoadRewardedAd();
+        }
+        
         // Charger le meilleur score sauvegardé
         LoadBestScore();
     }
@@ -248,38 +254,44 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Attendre que l'animation se termine
         yield return new WaitForSeconds(1f);
 
         // Montrer l'interstitial
         if (adMobAdsScript != null)
         {
-            Debug.Log("ShowInterstitialThenGameOver: Tentative d'affichage de l'interstitiel");
+            // Charger l'interstitiel et attendre qu'il soit prêt
+            adMobAdsScript.LoadInterstitialAd();
             
-            // Vérifier si la pub est chargée
-            if (adMobAdsScript.IsInterstitialAdLoaded())
+            // Attendre que l'interstitiel soit chargé (maximum 3 secondes)
+            float waitTime = 0f;
+            while (waitTime < 3f && !IsInterstitialAdReady())
             {
-                Debug.Log("L'interstitiel est chargé, on l'affiche");
+                yield return new WaitForSeconds(0.1f);
+                waitTime += 0.1f;
+            }
+            
+            // Afficher l'interstitiel s'il est prêt
+            if (IsInterstitialAdReady())
+            {
                 adMobAdsScript.ShowInterstitialAd();
-                
-                // Attendre suffisamment longtemps pour que l'interstitiel s'affiche
-                yield return new WaitForSeconds(1.5f);
             }
-            else
-            {
-                Debug.LogWarning("L'interstitiel n'est pas chargé, on continue sans l'afficher");
-                // Tenter de charger pour la prochaine fois
-                adMobAdsScript.LoadInterstitialAd();
-            }
-        }
-        else
-        {
-            Debug.LogError("ShowInterstitialThenGameOver: adMobAdsScript est null");
         }
 
-        // Afficher l'écran de game over dans tous les cas
-        Debug.Log("ShowInterstitialThenGameOver: Affichage de l'écran de game over");
+        // Attendre un peu pour s'assurer que l'interstitial a eu le temps de s'afficher
+        yield return new WaitForSeconds(0.5f);
+
+        // Afficher l'écran de game over
         onGameOver.Invoke();
+    }
+    
+    // Méthode pour vérifier si l'interstitiel est prêt
+    private bool IsInterstitialAdReady()
+    {
+        if (adMobAdsScript != null)
+        {
+            return adMobAdsScript.IsInterstitialReady();
+        }
+        return false;
     }
 
     /// <summary>

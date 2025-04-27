@@ -664,69 +664,56 @@ public class UIManager : MonoBehaviour
 
     public void OnGameStart()
     {
-        menuPanel.SetActive(false);
-        gameOverPanel.SetActive(false);
-        
-        // Réinitialiser increScore à 0
-        if (increScore != null)
+        // Masquer le panneau de game over
+        if (gameOverPanel != null)
         {
-            increScore.text = "0";
-        }
-
-        // Faire disparaître toutes les images de combo
-        if (comboImages != null)
-        {
-            foreach (Image img in comboImages)
-            {
-                if (img != null)
-                {
-                    img.gameObject.SetActive(false);
-                    img.transform.localScale = Vector3.one;
-                }
-            }
-        }
-
-        // S'assurer que les boutons sont actifs et interactifs pour la prochaine fois
-        if (restartButton != null)
-        {
-            restartButton.interactable = true;
+            gameOverPanel.SetActive(false);
         }
         
-        if (continueButton != null)
+        // Afficher le panneau de jeu
+        if (uiCanvas != null)
         {
-            continueButton.interactable = true;
+            uiCanvas.gameObject.SetActive(true);
         }
-
-        if (SafeArea != null)
+        
+        // Si c'est une reprise après une publicité (ContinueGame), 
+        // alors il faut s'assurer que le score est correctement affiché
+        if (GameManager.Instance != null && scoreText != null)
+        {
+            scoreText.text = GameManager.Instance.displayedScore.ToString();
+        }
+        
+        // Activer la zone de jeu
+        if (SafeArea != null && Board != null)
         {
             SafeArea.SetActive(true);
             Board.SetActive(true);
         }
-        if (uiCanvas != null)
+
+        // Réinitialiser l'état d'affichage des images de combo
+        if (comboImages != null)
         {
-            uiCanvas.gameObject.SetActive(true);
-            
-            // Pour les appareils mobiles, corriger le timer au démarrage du jeu
-            if (isMobileDevice && timerText != null)
+            foreach (var img in comboImages)
             {
-                // Petit délai pour s'assurer que tout est initialisé
-                Invoke("FixTimerDisplay", 0.1f);
+                if (img != null)
+                {
+                    img.gameObject.SetActive(false);
+                }
             }
         }
 
-        if (wantedPanel != null)
+        // Mettre à jour l'affichage du timer
+        if (timerText != null && GameManager.Instance != null)
         {
-            wantedPanel.transform.localScale = Vector3.one;
-            wantedPanel.sizeDelta = finalWantedSize;
-            wantedPanel.anchoredPosition = finalWantedPosition;
-            
-            if (wantedImageRect != null && wantedCharacterImage.sprite != null)
-            {
-                float imageRatio = wantedCharacterImage.sprite.rect.width / wantedCharacterImage.sprite.rect.height;
-                float height = finalWantedSize.y * wantedImageScale;
-                float width = height * imageRatio;
-                wantedImageRect.sizeDelta = new Vector2(width, height);
-            }
+            timerText.text = Mathf.CeilToInt(GameManager.Instance.timeRemaining).ToString();
+            timerText.color = Color.white;
+            timerText.rectTransform.anchoredPosition = timerInitialPosition;
+        }
+        
+        // S'assurer que l'écran de menu est masqué
+        if (menuPanel != null)
+        {
+            menuPanel.SetActive(false);
         }
     }
 
@@ -844,6 +831,12 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance.isGameActive)
         {            
+            // Mettre à jour le texte du score
+            if (scoreText != null)
+            {
+                scoreText.text = $"{GameManager.Instance.displayedScore}";
+            }
+            
             int scoreModulo = (int)GameManager.Instance.displayedScore % 5;
             
             if (scoreModulo == 0 && GameManager.Instance.displayedScore > 0)
@@ -896,43 +889,121 @@ public class UIManager : MonoBehaviour
         // Jouer le son de disparition
         AudioManager.Instance?.PlayComboDisappearSound();
         
-        // Animation de disparition des images
-        foreach (Image img in comboImages)
+        // Obtenir la position du score pour l'animation
+        Vector3 scorePosition = increScore.transform.position;
+        
+        // Sauvegarder les positions initiales de chaque étoile pour pouvoir les restaurer plus tard
+        Vector3[] originalPositions = new Vector3[comboImages.Length];
+        Quaternion[] originalRotations = new Quaternion[comboImages.Length];
+        
+        for (int i = 0; i < comboImages.Length; i++)
         {
-            if (img != null)
+            if (comboImages[i] != null)
             {
-                img.transform.DOScale(0f, 0.3f)
-                    .SetEase(Ease.InBack)
-                    .OnComplete(() => {
-                        img.gameObject.SetActive(false);
-                        img.transform.localScale = Vector3.one;
-                    });
+                originalPositions[i] = comboImages[i].transform.position;
+                originalRotations[i] = comboImages[i].transform.rotation;
             }
         }
-
-        // Attendre que l'animation de disparition soit terminée
-        yield return new WaitForSeconds(0.3f);
-
-        // Mettre à jour et animer le increScore
-        int scoreBy5 = ((int)GameManager.Instance.displayedScore / 5) * 5;
-        increScore.text = scoreBy5.ToString();
         
-        // Jouer le son d'augmentation du score
-        AudioManager.Instance?.PlayScoreIncreaseSound();
+        // LOGIQUE ENTIÈREMENT RÉVISÉE
+        // Récupérer le score actuel (qui est déjà un multiple de 5)
+        int currentScore = (int)GameManager.Instance.displayedScore;
         
-        // Animation du score
-        increScore.transform.DOScale(1.5f, 0.3f)
-            .SetEase(Ease.OutBack)
-            .OnComplete(() => {
-                increScore.transform.DOScale(1f, 0.15f).SetEase(Ease.InOutBack);
-            });
-            
-        // Ajouter une rotation pour plus d'effet
-        increScore.transform.DORotate(new Vector3(0, 0, 15f), 0.15f)
-            .SetEase(Ease.OutBack)
-            .OnComplete(() => {
-                increScore.transform.DORotate(Vector3.zero, 0.15f).SetEase(Ease.InOutBack);
-            });
+        // Score de début = score actuel MOINS 5 (car nous venons juste de compléter un combo)
+        int startAnimScore = currentScore - 5;
+        
+        // Pour le premier combo, s'assurer que startAnimScore n'est pas négatif
+        if (startAnimScore < 0)
+            startAnimScore = 0;
+        
+        // Score final = score actuel
+        int endAnimScore = currentScore;
+        
+        // Débugger pour identifier le problème
+        Debug.Log($"[SCORE DEBUG] Score actuel: {currentScore}, Début animation: {startAnimScore}, Fin animation: {endAnimScore}");
+        
+        // Mettre à jour le score initial de l'animation
+        increScore.text = startAnimScore.ToString();
+        
+        // Animation des étoiles une par une vers le score
+        for (int i = 0; i < comboImages.Length; i++)
+        {
+            if (comboImages[i] != null && comboImages[i].gameObject.activeSelf)
+            {
+                // Animation de l'étoile qui se déplace vers le score
+                Sequence starSequence = DOTween.Sequence();
+                
+                // Déplacer l'étoile vers le score avec rotation et réduction d'échelle
+                int currentIndex = i; // Capture l'index actuel pour le callback
+                starSequence.Append(comboImages[i].transform.DOMove(scorePosition, 0.4f).SetEase(Ease.InOutQuad))
+                           .Join(comboImages[i].transform.DORotate(new Vector3(0, 0, 360), 0.4f, RotateMode.FastBeyond360).SetEase(Ease.InOutQuad))
+                           .Join(comboImages[i].transform.DOScale(0.3f, 0.4f).SetEase(Ease.InOutQuad))
+                           .OnComplete(() => {
+                               // Faire disparaître l'étoile immédiatement après son arrivée
+                               if (comboImages[currentIndex] != null)
+                               {
+                                   comboImages[currentIndex].gameObject.SetActive(false);
+                               }
+                           });
+                
+                // Attendre que l'animation de cette étoile soit terminée
+                yield return new WaitForSeconds(0.4f);
+                
+                // Faire disparaître l'étoile immédiatement (double sécurité)
+                if (comboImages[i] != null)
+                {
+                    comboImages[i].gameObject.SetActive(false);
+                }
+                
+                // Incrémenter le score de 1
+                startAnimScore += 1;
+                
+                // Log pour débogage
+                Debug.Log($"[SCORE DEBUG] Incrémentation {i+1}: {startAnimScore}");
+                
+                // Mettre à jour le score affiché
+                increScore.text = startAnimScore.ToString();
+                
+                // Animation du score
+                increScore.transform.DOScale(1.5f, 0.15f)
+                    .SetEase(Ease.OutBack)
+                    .OnComplete(() => {
+                        increScore.transform.DOScale(1f, 0.1f).SetEase(Ease.InOutBack);
+                    });
+                    
+                // Jouer le son d'augmentation du score
+                AudioManager.Instance?.PlayScoreIncreaseSound();
+                
+                // Ajouter une légère rotation pour plus d'effet
+                increScore.transform.DORotate(new Vector3(0, 0, 10f), 0.1f)
+                    .SetEase(Ease.OutBack)
+                    .OnComplete(() => {
+                        increScore.transform.DORotate(Vector3.zero, 0.1f).SetEase(Ease.InOutBack);
+                    });
+                
+                // Petit délai entre chaque étoile
+                yield return new WaitForSeconds(0.2f);
+            }
+        }
+        
+        // Dernière vérification pour s'assurer que le score final est correct
+        increScore.text = endAnimScore.ToString();
+        Debug.Log($"[SCORE DEBUG] Score final: {endAnimScore}");
+        
+        // Réinitialiser toutes les étoiles à leur position d'origine
+        for (int i = 0; i < comboImages.Length; i++)
+        {
+            if (comboImages[i] != null)
+            {
+                // Désactiver l'étoile
+                comboImages[i].gameObject.SetActive(false);
+                
+                // Remettre à sa position et rotation d'origine
+                comboImages[i].transform.position = originalPositions[i];
+                comboImages[i].transform.rotation = originalRotations[i];
+                comboImages[i].transform.localScale = Vector3.one;
+            }
+        }
     }
 
     private void OnDestroy()
@@ -1023,5 +1094,57 @@ public class UIManager : MonoBehaviour
             continueButton.interactable = true;
             Debug.Log("Réactivation du bouton Continue après erreur");
         }
+    }
+
+    // Méthode pour gérer le clic sur le bouton Continue
+    public void OnContinueButtonClicked()
+    {
+        if (GameManager.Instance == null)
+            return;
+            
+        // Masquer le bouton après le clic
+        if (continueButton != null)
+            continueButton.gameObject.SetActive(false);
+            
+        // Récupérer la référence AdMob s'il n'est pas encore défini
+        if (adMobAdsScript == null)
+        {
+            adMobAdsScript = FindObjectOfType<AdMobAdsScript>();
+        }
+        
+        // Vérifier si l'annonce récompensée est prête avant de l'afficher
+        if (adMobAdsScript != null && adMobAdsScript.IsRewardedAdReady())
+        {
+            adMobAdsScript.ShowRewardedAd();
+        }
+        else
+        {
+            // Si pas prête, essayer de la recharger et montrer un message
+            Debug.LogWarning("Rewarded ad not ready. Trying to reload.");
+            if (adMobAdsScript != null)
+            {
+                adMobAdsScript.LoadRewardedAd();
+            }
+            // Afficher un message à l'utilisateur
+            StartCoroutine(ShowErrorMessageAndRestoreButton());
+        }
+        
+        hasUsedContinue = true;
+    }
+    
+    private IEnumerator ShowErrorMessageAndRestoreButton()
+    {
+        // Afficher un message temporaire
+        if (finalScoreText != null)
+        {
+            string originalText = finalScoreText.text;
+            finalScoreText.text = "Publicité non disponible, veuillez réessayer...";
+            yield return new WaitForSeconds(2.5f);
+            finalScoreText.text = originalText;
+        }
+        
+        // Réactiver le bouton continue
+        if (continueButton != null)
+            continueButton.gameObject.SetActive(true);
     }
 }

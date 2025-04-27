@@ -292,7 +292,7 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         }
         
         // S'assurer que la carte reste fixe à sa position actuelle
-        for (float t = 0; t < 1f; t += 0.05f)
+        for (float t = 0; t < 0.5f; t += 0.05f)
         {
             // Forcer la position à rester la même
             transform.position = originalPosition;
@@ -311,15 +311,68 @@ public class CharacterCard : MonoBehaviour, IPointerDownHandler
         if (layoutElement != null)
             layoutElement.ignoreLayout = true;
         
-        // Masquer la carte juste avant d'ajouter le score pour éviter
-        // tout effet de déplacement visible
-        DOTween.Sequence()
-            .AppendInterval(0.9f)  // Attendre presque jusqu'à la fin
-            .Append(transform.DOScale(0f, 0.1f))  // Disparaître rapidement
-            .SetEase(Ease.InBack);
-        
-        // Attendre 1 seconde totale avant d'ajouter le score
-        yield return new WaitForSeconds(1f);
+        // Animation de la carte vers l'étoile correspondante
+        if (UIManager.Instance != null && UIManager.Instance.comboImages != null)
+        {
+            // Calculer quelle étoile doit être activée (basé sur le score modulo 5)
+            int currentScore = (int)GameManager.Instance.displayedScore;
+            int targetStarIndex = currentScore % 5;
+            
+            // Si targetStarIndex est 0 et le score n'est pas 0, alors c'est un multiple de 5
+            if (targetStarIndex == 0 && currentScore > 0)
+            {
+                targetStarIndex = 4; // Utiliser la 5ème étoile (index 4)
+            }
+            else if (currentScore > 0)
+            {
+                // Sinon, utiliser l'index correspondant à la prochaine étoile
+                targetStarIndex = targetStarIndex - 1;
+            }
+            
+            // S'assurer que l'index est valide
+            if (targetStarIndex >= 0 && targetStarIndex < UIManager.Instance.comboImages.Length)
+            {
+                // Obtenir la position de l'étoile cible
+                Vector3 starPosition = UIManager.Instance.comboImages[targetStarIndex].transform.position;
+                
+                Debug.Log($"Animation de la carte vers l'étoile {targetStarIndex+1}");
+                
+                // Créer une séquence d'animation pour déplacer la carte vers l'étoile
+                Sequence cardToStarSequence = DOTween.Sequence();
+                
+                // Déplacer la carte vers l'étoile avec un effet de rebond
+                cardToStarSequence
+                    .Append(transform.DOMove(starPosition, 0.5f).SetEase(Ease.InOutQuad))
+                    .Join(transform.DOScale(0.5f, 0.5f).SetEase(Ease.InOutQuad))
+                    .Join(transform.DORotate(new Vector3(0, 0, 360), 0.5f, RotateMode.FastBeyond360).SetEase(Ease.InOutQuad))
+                    .OnComplete(() => {
+                        // Faire disparaître la carte à l'arrivée
+                        transform.DOScale(0f, 0.2f).SetEase(Ease.InBack);
+                        
+                        // Jouer une animation sur l'étoile
+                        UIManager.Instance.comboImages[targetStarIndex].transform.DOScale(1.5f, 0.2f).SetEase(Ease.OutBack)
+                            .OnComplete(() => {
+                                UIManager.Instance.comboImages[targetStarIndex].transform.DOScale(1f, 0.1f).SetEase(Ease.InOutBack);
+                            });
+                    });
+                
+                // Attendre que l'animation se termine
+                yield return new WaitForSeconds(0.8f);
+            }
+            else
+            {
+                // Fallback si l'index est invalide
+                Debug.LogError($"Index d'étoile invalide: {targetStarIndex}");
+                transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+                yield return new WaitForSeconds(0.3f);
+            }
+        }
+        else
+        {
+            // Fallback si les étoiles ne sont pas disponibles
+            transform.DOScale(0f, 0.3f).SetEase(Ease.InBack);
+            yield return new WaitForSeconds(0.3f);
+        }
         
         // Ensuite ajouter le score et déclencher la séquence suivante
         GameManager.Instance.AddScore();
